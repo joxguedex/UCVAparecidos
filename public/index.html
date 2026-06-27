@@ -26,6 +26,10 @@
         </div>
       </div>
       <div class="nav-actions">
+        <button class="btn-secondary" id="btn-importar-excel">
+          <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 16V4M8 12l4 4 4-4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Importar Excel
+        </button>
         <button class="btn-primary" id="btn-reportar-desaparecido">
           <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
           Reportar desaparecido
@@ -256,6 +260,74 @@
         </button>
       </div>
       <div class="modal-detail-body" id="modal-det-content"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MODAL: Importar desde Excel
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-importar" aria-hidden="true" role="dialog" aria-labelledby="m-imp-title">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2 class="modal-title" id="m-imp-title">Importar estudiantes desde Excel</h2>
+        <button class="modal-close" data-close="modal-importar" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <div class="modal-form">
+        <!-- Instrucciones -->
+        <div class="imp-info">
+          <p>Sube tu archivo Excel con la lista de estudiantes. Las columnas que reconocemos son:</p>
+          <div class="imp-cols">
+            <span class="imp-col req-col">nombre *</span>
+            <span class="imp-col req-col">facultad *</span>
+            <span class="imp-col req-col">carrera *</span>
+            <span class="imp-col">cedula</span>
+            <span class="imp-col">semestre</span>
+            <span class="imp-col">estado</span>
+            <span class="imp-col">telefono_contacto</span>
+            <span class="imp-col">nombre_contacto</span>
+            <span class="imp-col">relacion_contacto</span>
+            <span class="imp-col">ultima_ubicacion</span>
+            <span class="imp-col">descripcion</span>
+            <span class="imp-col">tipo_confirmacion</span>
+            <span class="imp-col">detalles_confirmacion</span>
+          </div>
+          <p class="imp-note">Los encabezados pueden tener mayúsculas, espacios o tildes — los reconocemos igual. Si no hay columna <code>estado</code>, se asume <em>desaparecido</em>.</p>
+          <a href="/api/importar/plantilla" class="imp-template-link" download>
+            <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 16V4M8 12l4 4 4-4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Descargar plantilla de ejemplo
+          </a>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="imp-dropzone" id="imp-dropzone" tabindex="0" role="button" aria-label="Seleccionar archivo Excel">
+          <input type="file" id="imp-file-input" accept=".xlsx,.xls" style="display:none">
+          <div class="imp-dz-icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="4" width="28" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M28 4v10h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M34 4l10 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M14 22h12M14 28h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <p class="imp-dz-text">Arrastra tu archivo aquí o <span class="imp-dz-link">haz clic para seleccionar</span></p>
+          <p class="imp-dz-hint">.xlsx o .xls · máximo 10 MB</p>
+          <div class="imp-dz-file" id="imp-dz-file" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/></svg>
+            <span id="imp-file-name"></span>
+            <button class="imp-remove" id="imp-remove-file" aria-label="Quitar archivo">×</button>
+          </div>
+        </div>
+
+        <!-- Results -->
+        <div class="imp-results" id="imp-results" style="display:none"></div>
+
+        <!-- Actions -->
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" data-close="modal-importar">Cancelar</button>
+          <button type="button" class="btn-primary" id="btn-do-import" disabled>
+            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 12l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Importar estudiantes
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 

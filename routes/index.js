@@ -8,11 +8,13 @@ const { Router }    = require('express');
 const students      = require('./students');
 const stats         = require('./stats');
 const facultades    = require('./facultades');
+const importar      = require('./import');
 
 const router = Router();
 
 router.use('/estudiantes', students);
 router.use('/stats',       stats);
 router.use('/facultades',  facultades);
+router.use('/importar',    importar);
 
 module.exports = router;

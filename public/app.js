@@ -275,6 +275,7 @@ function closeModal(id) {
   el.classList.remove('open');
   el.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
+  document.dispatchEvent(new CustomEvent('modalClosed', { detail: id }));
 }
 
 // ─────────────────────────────────────────
@@ -528,11 +529,120 @@ $('form-aparecido').addEventListener('submit', async e => {
 });
 
 // ─────────────────────────────────────────
+//  Import Excel modal
+// ─────────────────────────────────────────
+(function initImport() {
+  let selectedFile = null;
+
+  const dropzone   = $('imp-dropzone');
+  const fileInput  = $('imp-file-input');
+  const fileLabel  = $('imp-dz-file');
+  const fileName   = $('imp-file-name');
+  const removeBtn  = $('imp-remove-file');
+  const importBtn  = $('btn-do-import');
+  const results    = $('imp-results');
+
+  function setFile(file) {
+    if (!file) return;
+    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+      toast('Solo se aceptan archivos .xlsx o .xls', 'error');
+      return;
+    }
+    selectedFile = file;
+    fileName.textContent = file.name;
+    fileLabel.style.display = 'flex';
+    importBtn.disabled = false;
+    results.style.display = 'none';
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    fileInput.value = '';
+    fileLabel.style.display = 'none';
+    importBtn.disabled = true;
+    results.style.display = 'none';
+  }
+
+  dropzone.addEventListener('click', e => {
+    if (e.target === removeBtn) return;
+    fileInput.click();
+  });
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+  });
+  fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+  removeBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
+
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    setFile(e.dataTransfer.files[0]);
+  });
+
+  importBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    importBtn.disabled = true;
+    importBtn.classList.add('btn-loading');
+    importBtn.textContent = 'Importando…';
+    results.style.display = 'none';
+
+    const fd = new FormData();
+    fd.append('archivo', selectedFile);
+
+    try {
+      const r = await fetch('/api/importar', { method: 'POST', body: fd });
+      const data = await r.json();
+
+      results.style.display = 'block';
+      if (!r.ok) {
+        results.className = 'imp-results error';
+        results.innerHTML = `
+          <div class="imp-res-title err">Error al importar</div>
+          <div class="imp-res-body">${esc(data.error)}</div>
+          ${data.errores?.length ? `<ul class="imp-errors-list">${data.errores.map(e => `<li>Fila ${e.fila}: ${esc(e.motivo)}</li>`).join('')}</ul>` : ''}`;
+        return;
+      }
+
+      const { importados, omitidos, errores } = data;
+      const cls    = omitidos > 0 ? 'partial' : 'success';
+      const tCls   = omitidos > 0 ? 'warn' : 'ok';
+      results.className = `imp-results ${cls}`;
+      results.innerHTML = `
+        <div class="imp-res-title ${tCls}">${importados} estudiante${importados !== 1 ? 's' : ''} importado${importados !== 1 ? 's' : ''} correctamente</div>
+        <div class="imp-res-body">${omitidos > 0 ? `${omitidos} fila${omitidos !== 1 ? 's' : ''} omitida${omitidos !== 1 ? 's' : ''} por falta de datos requeridos.` : 'Todos los registros fueron importados sin problemas.'}</div>
+        ${errores?.length ? `<ul class="imp-errors-list">${errores.map(e => `<li>Fila ${e.fila}: ${esc(e.motivo)}</li>`).join('')}</ul>` : ''}`;
+
+      if (importados > 0) {
+        toast(`${importados} estudiante${importados !== 1 ? 's' : ''} importado${importados !== 1 ? 's' : ''} exitosamente.`, 'success');
+        clearFile();
+        await Promise.all([loadStudents(), loadStats()]);
+      }
+    } catch (err) {
+      results.style.display = 'block';
+      results.className = 'imp-results error';
+      results.innerHTML = `<div class="imp-res-title err">Error de red</div><div class="imp-res-body">${esc(err.message)}</div>`;
+    } finally {
+      importBtn.disabled = !selectedFile;
+      importBtn.classList.remove('btn-loading');
+      importBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 12l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Importar estudiantes`;
+    }
+  });
+
+  // Reset modal state when closed
+  document.addEventListener('modalClosed', e => {
+    if (e.detail === 'modal-importar') { clearFile(); results.style.display = 'none'; }
+  });
+})();
+
+// ─────────────────────────────────────────
 //  Event bindings
 // ─────────────────────────────────────────
 function bindEvents() {
   // Open missing modal
   $('btn-reportar-desaparecido').addEventListener('click', () => openModal('modal-desaparecido'));
+  $('btn-importar-excel').addEventListener('click', () => openModal('modal-importar'));
 
   // Close buttons via data-close
   document.querySelectorAll('[data-close]').forEach(btn =>
