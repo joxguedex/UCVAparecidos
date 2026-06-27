@@ -57,6 +57,14 @@ const CONF = {
   otro:               { label: 'Otro',                    icon: '📋' }
 };
 
+const DEATH_CONF = {
+  hospital:               { label: 'Hospital o centro médico',    icon: '🏥' },
+  familiar:               { label: 'Confirmación familiar',        icon: '🕊️' },
+  rescate:                { label: 'Equipo de rescate',            icon: '🚒' },
+  documentacion_oficial:  { label: 'Documentación oficial',        icon: '📋' },
+  otro:                   { label: 'Otro',                         icon: '📝' },
+};
+
 const FAC_TAG = {
   'Ciencias':                     'tag-f-ciencias',
   'Medicina':                     'tag-f-medicina',
@@ -111,6 +119,7 @@ function renderStats() {
   if (!state.stats) return;
   $('stat-desaparecidos').textContent = state.stats.desaparecidos;
   $('stat-aparecidos').textContent    = state.stats.aparecidos;
+  $('stat-fallecidos').textContent    = state.stats.fallecidos ?? 0;
   $('stat-total').textContent         = state.stats.total;
   $('stat-facultades').textContent    = state.stats.porFacultad.length;
 }
@@ -127,7 +136,7 @@ function renderFacultyBar() {
     <button class="fac-chip ${state.filters.facultad === f.facultad ? 'active' : ''}"
             data-fac="${esc(f.facultad)}">
       ${esc(f.facultad)}
-      <span class="fac-count">${f.desaparecidos}✗ ${f.aparecidos}✓</span>
+      <span class="fac-count">${f.desaparecidos}✗ ${f.aparecidos}✓${f.fallecidos > 0 ? ` ${f.fallecidos}†` : ''}</span>
     </button>
   `).join('');
 
@@ -159,32 +168,55 @@ function heartbeatSVG() {
 //  Render: single card
 // ─────────────────────────────────────────
 function renderCard(s) {
-  const missing = s.estado === 'desaparecido';
-  const av      = initials(s.nombre);
-  const conf    = s.tipo_confirmacion ? CONF[s.tipo_confirmacion] : null;
-  const tagCls  = facTag(s.facultad);
+  const missing  = s.estado === 'desaparecido';
+  const deceased = s.estado === 'fallecido';
+  const found    = s.estado === 'aparecido';
+
+  const av     = initials(s.nombre);
+  const conf   = s.tipo_confirmacion ? (deceased ? DEATH_CONF : CONF)[s.tipo_confirmacion] : null;
+  const tagCls = facTag(s.facultad);
+
+  let headerHTML;
+  if (missing) {
+    headerHTML = heartbeatSVG();
+  } else if (deceased) {
+    headerHTML = `<div class="deceased-header">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm0 5v6m0 4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Fallecido — Q.E.P.D.
+    </div>`;
+  } else {
+    headerHTML = `<div class="found-shimmer">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Estudiante localizado
+    </div>`;
+  }
+
+  const statusTag = missing
+    ? `<span class="tag tag-missing">Desaparecido</span>`
+    : deceased
+    ? `<span class="tag tag-deceased">Fallecido</span>`
+    : `<span class="tag tag-found">Aparecido</span>`;
+
+  const cardClass   = missing ? 'missing'   : deceased ? 'deceased' : 'found';
+  const avatarClass = missing ? 'av-missing' : deceased ? 'av-deceased' : 'av-found';
+  const ariaLabel   = missing ? 'desaparecido' : deceased ? 'fallecido' : 'aparecido';
+  const timeRef     = missing ? s.fecha_registro : s.fecha_aparecio;
 
   return `
-  <article class="s-card ${missing ? 'missing' : 'found'}"
+  <article class="s-card ${cardClass}"
            data-id="${s.id}" role="listitem"
-           aria-label="${esc(s.nombre)}, ${missing ? 'desaparecido' : 'aparecido'}">
+           aria-label="${esc(s.nombre)}, ${ariaLabel}">
 
-    ${missing
-      ? heartbeatSVG()
-      : `<div class="found-shimmer">
-           <svg viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-           Estudiante localizado
-         </div>`
-    }
+    ${headerHTML}
 
     <div class="card-body">
       <div class="card-head">
-        <div class="card-avatar ${missing ? 'av-missing' : 'av-found'}" aria-hidden="true">${av}</div>
+        <div class="card-avatar ${avatarClass}" aria-hidden="true">${av}</div>
         <div class="card-info">
           <h3 class="card-name">${esc(s.nombre)}</h3>
           <div class="card-tags">
             <span class="tag ${tagCls}">${esc(s.facultad)}</span>
-            <span class="tag ${missing ? 'tag-missing' : 'tag-found'}">${missing ? 'Desaparecido' : 'Aparecido'}</span>
+            ${statusTag}
           </div>
           <div class="card-career">${esc(s.carrera)}${s.semestre ? ` · ${esc(s.semestre)}` : ''}</div>
         </div>
@@ -208,7 +240,7 @@ function renderCard(s) {
       </div>
     </div>
 
-    ${!missing && conf ? `
+    ${found && conf ? `
       <div class="conf-block">
         <div class="conf-type">
           <span class="conf-icon" aria-hidden="true">${conf.icon}</span>
@@ -220,7 +252,7 @@ function renderCard(s) {
     <div class="card-foot">
       <button class="c-btn c-btn-detail" data-action="detail" data-id="${s.id}">Ver detalles</button>
       ${missing ? `<button class="c-btn c-btn-found" data-action="found" data-id="${s.id}">Marcar aparecido</button>` : ''}
-      <span class="card-time">${timeAgo(missing ? s.fecha_registro : s.fecha_aparecio)}</span>
+      <span class="card-time">${timeAgo(timeRef)}</span>
     </div>
   </article>`;
 }
@@ -285,10 +317,20 @@ function openDetailModal(id) {
   const s = state.students.find(x => x.id === id);
   if (!s) return;
 
-  const missing = s.estado === 'desaparecido';
-  const conf    = s.tipo_confirmacion ? CONF[s.tipo_confirmacion] : null;
+  const missing  = s.estado === 'desaparecido';
+  const deceased = s.estado === 'fallecido';
+  const found    = s.estado === 'aparecido';
+  const conf     = s.tipo_confirmacion
+    ? (deceased ? DEATH_CONF : CONF)[s.tipo_confirmacion]
+    : null;
 
-  $('m-det-header').className = `modal-header ${missing ? '' : 'found-header'}`;
+  const headerCls = found ? 'found-header' : '';
+  $('m-det-header').className = `modal-header ${headerCls}`;
+  if (deceased) {
+    $('m-det-header').style.cssText = 'background:var(--slate-dim);border-bottom-color:rgba(155,181,200,.22)';
+  } else {
+    $('m-det-header').style.cssText = '';
+  }
   $('m-det-title').textContent = s.nombre;
 
   $('modal-det-content').innerHTML = `
@@ -348,7 +390,7 @@ function openDetailModal(id) {
       </div>
     </div>` : ''}
 
-    ${!missing && conf ? `
+    ${found && conf ? `
     <div class="det-section">
       <div class="det-sec-title">Confirmación de aparición</div>
       <div class="det-conf-box">
@@ -364,8 +406,27 @@ function openDetailModal(id) {
       </div>
     </div>` : ''}
 
+    ${deceased ? `
+    <div class="det-section">
+      <div class="det-sec-title" style="color:var(--slate)">Confirmación de fallecimiento</div>
+      <div class="det-conf-box-deceased">
+        <div class="det-conf-head">
+          <span style="font-size:20px" aria-hidden="true">${conf ? conf.icon : '🕊️'}</span>
+          <span class="conf-label-deceased">${conf ? conf.label : 'Confirmado'}</span>
+          <span class="det-conf-when">${formatDate(s.fecha_aparecio)}</span>
+        </div>
+        ${s.detalles_confirmacion ? `<p class="det-conf-text">"${esc(s.detalles_confirmacion)}"</p>` : ''}
+        ${s.reportado_aparicion_por ? `
+          <p class="det-conf-reporter">Reportado por: ${esc(s.reportado_aparicion_por)}${s.contacto_reportador ? ` · ${esc(s.contacto_reportador)}` : ''}</p>
+        ` : ''}
+      </div>
+    </div>` : ''}
+
     <div class="det-actions">
-      ${missing ? `<button class="btn-found" id="det-btn-found" data-id="${s.id}">Marcar como aparecido</button>` : ''}
+      ${missing ? `
+        <button class="btn-found" id="det-btn-found" data-id="${s.id}">Marcar como aparecido</button>
+        <button class="btn-deceased" id="det-btn-fall" data-id="${s.id}">Reportar fallecimiento</button>
+      ` : ''}
       <button class="btn-secondary" data-close="modal-detalle">Cerrar</button>
     </div>
   `;
@@ -377,6 +438,11 @@ function openDetailModal(id) {
   if (bf) bf.addEventListener('click', () => {
     closeModal('modal-detalle');
     openFoundModal(parseInt(bf.dataset.id));
+  });
+  const bfall = $('det-btn-fall');
+  if (bfall) bfall.addEventListener('click', () => {
+    closeModal('modal-detalle');
+    openDeceasedModal(parseInt(bfall.dataset.id));
   });
 
   openModal('modal-detalle');
@@ -396,6 +462,22 @@ function openFoundModal(id) {
   $('fa-student-id').value = id;
 
   openModal('modal-aparecido');
+}
+
+// ─────────────────────────────────────────
+//  Deceased modal
+// ─────────────────────────────────────────
+function openDeceasedModal(id) {
+  const s = state.students.find(x => x.id === id);
+  if (!s) return;
+
+  $('modal-fall-banner').innerHTML =
+    `<strong>${esc(s.nombre)}</strong> · ${esc(s.facultad)} · ${esc(s.carrera)}`;
+
+  $('form-fallecido').reset();
+  $('ffall-student-id').value = id;
+
+  openModal('modal-fallecido');
 }
 
 // ─────────────────────────────────────────
@@ -525,6 +607,35 @@ $('form-aparecido').addEventListener('submit', async e => {
     toast('Error: ' + err.message, 'error');
   } finally {
     btn.disabled = false; btn.textContent = 'Confirmar aparición';
+  }
+});
+
+// ─────────────────────────────────────────
+//  Form: report deceased
+// ─────────────────────────────────────────
+$('form-fallecido').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('btn-submit-fall');
+  btn.disabled = true; btn.textContent = 'Confirmando…';
+
+  const fd = new FormData(e.target);
+  const id = fd.get('student_id');
+  const data = {
+    tipo_confirmacion_deceso: fd.get('tipo_confirmacion_deceso'),
+    detalles_confirmacion:    fd.get('detalles_confirmacion'),
+    reportado_aparicion_por:  fd.get('reportado_aparicion_por'),
+    contacto_reportador:      fd.get('contacto_reportador')
+  };
+  try {
+    await api.put(`/api/estudiantes/${id}/fallecio`, data);
+    closeModal('modal-fallecido');
+    e.target.reset();
+    toast('Fallecimiento registrado. Q.E.P.D.', 'info');
+    await Promise.all([loadStudents(), loadStats()]);
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Confirmar fallecimiento';
   }
 });
 

@@ -97,6 +97,33 @@ const Student = {
     return data;
   },
 
+  /** Registra el fallecimiento confirmado de un estudiante. */
+  async markDeceased(id, fields) {
+    const {
+      tipo_confirmacion_deceso,
+      detalles_confirmacion,
+      reportado_aparicion_por,
+      contacto_reportador
+    } = fields;
+
+    const { data, error } = await supabase
+      .from('estudiantes')
+      .update({
+        estado:                  'fallecido',
+        fecha_aparecio:          new Date().toISOString(),
+        tipo_confirmacion:       tipo_confirmacion_deceso || 'otro',
+        detalles_confirmacion:   detalles_confirmacion   || null,
+        reportado_aparicion_por: reportado_aparicion_por || null,
+        contacto_reportador:     contacto_reportador     || null,
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
 };
 
 module.exports = Student;

@@ -31,10 +31,16 @@
   --rose-lt:    #F07888;
   --rose-dim:   rgba(224,102,120,0.10);
 
+  /* Slate — fallecido */
+  --slate:      #9BB5C8;
+  --slate-lt:   #B0C8D8;
+  --slate-dim:  rgba(155,181,200,0.10);
+  --slate-glow: rgba(155,181,200,0.20);
+
   /* Text */
   --text:       #EDE8E0;
-  --text-sec:   #A0B4C8;
-  --text-muted: #5A7490;
+  --text-sec:   #BACDD8;
+  --text-muted: #7A98B4;
 
   /* Radii */
   --r-sm: 6px;
@@ -169,10 +175,11 @@ input, select, textarea { font-family: inherit; color: inherit; }
   line-height: 1; margin-bottom: 6px;
   transition: all .4s ease;
 }
-.stat-num.missing { color: var(--rose); }
-.stat-num.found   { color: var(--emerald); }
-.stat-num.neutral { color: var(--text); }
-.stat-num.accent  { color: var(--amber); }
+.stat-num.missing  { color: var(--rose); }
+.stat-num.found    { color: var(--emerald); }
+.stat-num.neutral  { color: var(--text); }
+.stat-num.accent   { color: var(--amber); }
+.stat-num.deceased { color: var(--slate); }
 .stat-label {
   font-size: 12.5px; text-transform: uppercase;
   letter-spacing: .09em; color: var(--text-muted);
@@ -291,8 +298,13 @@ input, select, textarea { font-family: inherit; color: inherit; }
 .s-card.found {
   border-top: 2px solid var(--emerald);
 }
-.s-card.missing:hover { border-color: rgba(224,102,120,.5); border-top-color: var(--rose); }
-.s-card.found:hover   { border-color: rgba(82,199,138,.5);  border-top-color: var(--emerald); }
+.s-card.deceased {
+  border-top: 2px solid var(--slate);
+  opacity: 0.88;
+}
+.s-card.missing:hover  { border-color: rgba(224,102,120,.5); border-top-color: var(--rose); }
+.s-card.found:hover    { border-color: rgba(82,199,138,.5);  border-top-color: var(--emerald); }
+.s-card.deceased:hover { border-color: rgba(155,181,200,.4); border-top-color: var(--slate); opacity: 1; }
 
 /* ── Heartbeat line (missing only) ── */
 .hb-wrap {
@@ -325,6 +337,17 @@ input, select, textarea { font-family: inherit; color: inherit; }
 }
 .found-shimmer svg { width: 13px; height: 13px; flex-shrink: 0; }
 
+/* ── Deceased header ── */
+.deceased-header {
+  padding: 8px 18px;
+  display: flex; align-items: center; gap: 7px;
+  background: var(--slate-dim);
+  color: var(--slate);
+  font-size: 13px; font-weight: 500;
+  letter-spacing: .05em; text-transform: uppercase;
+}
+.deceased-header svg { width: 13px; height: 13px; flex-shrink: 0; }
+
 /* ── Card body ── */
 .card-body { padding: 16px 18px 14px; flex: 1; }
 .card-head {
@@ -345,9 +368,13 @@ input, select, textarea { font-family: inherit; color: inherit; }
   background: var(--emerald-dim); color: var(--emerald-lt);
   border: 1px solid rgba(82,199,138,.22);
 }
+.av-deceased {
+  background: var(--slate-dim); color: var(--slate-lt);
+  border: 1px solid rgba(155,181,200,.22);
+}
 .card-info { flex: 1; min-width: 0; }
 .card-name {
-  font-family: var(--ff-display); font-size: 19px; font-weight: 600;
+  font-family: var(--ff-display); font-size: 20px; font-weight: 600;
   color: var(--text); margin-bottom: 5px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -364,10 +391,11 @@ input, select, textarea { font-family: inherit; color: inherit; }
 .tag-f-arquit      { background: rgba(200,160,80,.14);  color: #d4b060; }
 .tag-f-faces       { background: rgba(100,220,180,.14); color: #70d4c0; }
 .tag-f-default     { background: var(--surface-3); color: var(--text-sec); }
-.tag-missing { background: var(--rose-dim); color: var(--rose); border: 1px solid rgba(224,102,120,.2); }
-.tag-found   { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(82,199,138,.2); }
+.tag-missing  { background: var(--rose-dim);    color: var(--rose);    border: 1px solid rgba(224,102,120,.2); }
+.tag-found    { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(82,199,138,.2); }
+.tag-deceased { background: var(--slate-dim);   color: var(--slate);   border: 1px solid rgba(155,181,200,.2); }
 
-.card-career { font-size: 14px; color: var(--text-muted); }
+.card-career { font-size: 15px; color: var(--text-sec); }
 
 .card-details { display: flex; flex-direction: column; gap: 7px; }
 .d-row { display: flex; gap: 8px; align-items: flex-start; }
@@ -375,8 +403,8 @@ input, select, textarea { font-family: inherit; color: inherit; }
   font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
   color: var(--text-muted); min-width: 82px; flex-shrink: 0; padding-top: 2px;
 }
-.d-val { font-size: 14.5px; color: var(--text-sec); line-height: 1.5; }
-.d-val.mono { font-family: var(--ff-mono); font-size: 13.5px; }
+.d-val { font-size: 15px; color: var(--text); line-height: 1.5; }
+.d-val.mono { font-family: var(--ff-mono); font-size: 14px; }
 
 /* ── Confirmation block ── */
 .conf-block {
@@ -464,6 +492,19 @@ input, select, textarea { font-family: inherit; color: inherit; }
   box-shadow: 0 4px 14px var(--emerald-gl);
 }
 .btn-found:active { transform: none; }
+
+.btn-deceased {
+  background: var(--slate-dim); color: var(--slate);
+  border: 1px solid rgba(155,181,200,.3); border-radius: var(--r);
+  padding: 11px 22px; font-size: 15.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 7px;
+  transition: all .2s;
+}
+.btn-deceased:hover {
+  background: rgba(155,181,200,.18);
+  border-color: var(--slate);
+}
+.btn-deceased:active { transform: none; }
 
 /* ─────────────────────────
    MODALS
@@ -589,6 +630,15 @@ input, select, textarea { font-family: inherit; color: inherit; }
   background: var(--emerald-dim);
   border: 1px solid rgba(82,199,138,.16);
   border-radius: var(--r); padding: 18px;
+}
+.det-conf-box-deceased {
+  background: var(--slate-dim);
+  border: 1px solid rgba(155,181,200,.2);
+  border-radius: var(--r); padding: 18px;
+}
+.conf-label-deceased {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--slate); text-transform: uppercase; letter-spacing: .05em;
 }
 .det-conf-head {
   display: flex; align-items: center; gap: 8px; margin-bottom: 10px;

@@ -63,6 +63,11 @@
         </div>
         <div class="stat-div"></div>
         <div class="stat-item">
+          <div class="stat-num deceased" id="stat-fallecidos">—</div>
+          <div class="stat-label">Fallecidos</div>
+        </div>
+        <div class="stat-div"></div>
+        <div class="stat-item">
           <div class="stat-num neutral" id="stat-total">—</div>
           <div class="stat-label">Total registrados</div>
         </div>
@@ -95,6 +100,7 @@
           <button class="tab-btn active" data-estado="">Todos</button>
           <button class="tab-btn" data-estado="desaparecido">Desaparecidos</button>
           <button class="tab-btn" data-estado="aparecido">Aparecidos</button>
+          <button class="tab-btn" data-estado="fallecido">Fallecidos</button>
         </div>
       </div>
 
@@ -243,6 +249,59 @@
         <div class="form-actions">
           <button type="button" class="btn-secondary" data-close="modal-aparecido">Cancelar</button>
           <button type="submit" class="btn-found" id="btn-submit-apar">Confirmar aparición</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       MODAL: Reportar fallecimiento
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-fallecido" aria-hidden="true" role="dialog" aria-labelledby="m-fall-title">
+    <div class="modal">
+      <div class="modal-header" style="background:var(--slate-dim);border-bottom-color:rgba(155,181,200,.22)">
+        <h2 class="modal-title" id="m-fall-title" style="color:var(--slate)">Reportar fallecimiento</h2>
+        <button class="modal-close" data-close="modal-fallecido" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-student-banner" id="modal-fall-banner"></div>
+      <form class="modal-form" id="form-fallecido" novalidate>
+        <input type="hidden" name="student_id" id="ffall-student-id">
+
+        <div class="fsec">¿Cómo fue confirmado el fallecimiento?</div>
+        <div class="form-group">
+          <label class="form-label">Tipo de confirmación <span class="req">*</span></label>
+          <select name="tipo_confirmacion_deceso" class="form-select" required>
+            <option value="">Seleccionar…</option>
+            <option value="hospital">Hospital o centro médico</option>
+            <option value="familiar">Confirmación familiar directa</option>
+            <option value="rescate">Equipo de rescate</option>
+            <option value="documentacion_oficial">Documentación oficial</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Detalles de la confirmación <span class="req">*</span></label>
+          <textarea name="detalles_confirmacion" class="form-textarea" rows="3"
+            placeholder="Cuéntanos cómo fue confirmado el fallecimiento…" required></textarea>
+        </div>
+
+        <div class="fsec">¿Quién reporta esta información?</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tu nombre</label>
+            <input type="text" name="reportado_aparicion_por" class="form-input" placeholder="Opcional pero valioso">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tu teléfono o correo</label>
+            <input type="text" name="contacto_reportador" class="form-input mono" placeholder="Para verificación">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" data-close="modal-fallecido">Cancelar</button>
+          <button type="submit" class="btn-deceased" id="btn-submit-fall">Confirmar fallecimiento</button>
         </div>
       </form>
     </div>

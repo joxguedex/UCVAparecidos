@@ -48,11 +48,31 @@ exports.markFound = async (req, res) => {
   try {
     const existing = await Student.findById(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Estudiante no encontrado' });
-    if (existing.estado === 'aparecido') {
-      return res.status(409).json({ error: 'Este estudiante ya fue marcado como aparecido' });
+    if (existing.estado !== 'desaparecido') {
+      return res.status(409).json({ error: 'Solo se pueden marcar como aparecidos estudiantes desaparecidos' });
     }
 
     res.json(await Student.markFound(req.params.id, req.body));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.markDeceased = async (req, res) => {
+  const { tipo_confirmacion_deceso } = req.body;
+
+  if (!tipo_confirmacion_deceso?.trim()) {
+    return res.status(400).json({ error: 'El tipo de confirmación es requerido' });
+  }
+
+  try {
+    const existing = await Student.findById(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Estudiante no encontrado' });
+    if (existing.estado !== 'desaparecido') {
+      return res.status(409).json({ error: 'Solo se pueden registrar como fallecidos estudiantes desaparecidos' });
+    }
+
+    res.json(await Student.markDeceased(req.params.id, req.body));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

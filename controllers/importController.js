@@ -59,7 +59,7 @@ const FIELD_MAP = {
   contacto_reportador:           'contacto_reportador',
 };
 
-const VALID_ESTADOS       = new Set(['desaparecido', 'aparecido']);
+const VALID_ESTADOS       = new Set(['desaparecido', 'aparecido', 'fallecido']);
 const VALID_CONFIRMACIONES = new Set([
   'contacto_directo','llamada_telefonica','mensaje_texto',
   'video','presencia_fisica','tercero_confiable','redes_sociales','otro',
@@ -111,7 +111,7 @@ exports.importExcel = async (req, res) => {
       record.tipo_confirmacion = VALID_CONFIRMACIONES.has(tcRaw) ? tcRaw : 'otro';
     }
 
-    if (record.estado === 'aparecido') {
+    if (record.estado === 'aparecido' || record.estado === 'fallecido') {
       record.fecha_aparecio = new Date().toISOString();
     }
 

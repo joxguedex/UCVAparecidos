@@ -43,6 +43,7 @@ const FACULTADES = {
   'Odontología': ['Odontología'],
   'Agronomía': ['Agronómia'],
   'Veterinaria': ['Medicina Veterinaria'],
+  'Administración UCV': ['Personal Administrativo', 'Trabajador', 'Deportes', 'Servicios'],
 };
 
 const Facultad = {

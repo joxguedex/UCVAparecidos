@@ -17,5 +17,6 @@ router.get  ('/',                ctrl.getAll);
 router.get  ('/:id',             ctrl.getOne);
 router.post ('/',                ctrl.create);
 router.put  ('/:id/aparecio',    ctrl.markFound);
+router.put  ('/:id/fallecio',    ctrl.markDeceased);
 
 module.exports = router;
