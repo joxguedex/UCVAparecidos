@@ -647,19 +647,96 @@ input, select, textarea { font-family: inherit; color: inherit; }
 /* ─────────────────────────
    RESPONSIVE
 ───────────────────────── */
-@media (max-width: 768px) {
-  .hero { padding: 48px 18px 40px; }
-  .hero-subtitle { font-size: 16px; }
-  .stats-band { width: 100%; overflow-x: auto; }
-  .stat-item { padding: 16px 22px; min-width: 90px; }
-  .stat-num { font-size: 34px; }
-  .filter-bar { gap: 8px; }
-  .filter-search-wrap { width: 100%; flex: unset; }
-  .form-row { grid-template-columns: 1fr; gap: 0; }
-  .students-grid { grid-template-columns: 1fr; }
-  .det-grid { grid-template-columns: 1fr; }
+
+/* ── Tablet (≤ 860px) ── */
+@media (max-width: 860px) {
   .nav-inner { padding: 0 18px; }
-  .main { padding: 28px 18px 70px; }
+  .students-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+  .hero { padding: 52px 20px 44px; }
+  .main { padding: 32px 20px 80px; }
+}
+
+/* ── Mobile (≤ 640px) ── */
+@media (max-width: 640px) {
+  /* — Navbar — */
+  .nav-inner { padding: 0 14px; height: 56px; }
+  .brand-ucv { font-size: 17px; }
+  .brand-sub { display: none; }
+  .nav-actions { gap: 6px; }
+  /* hide text labels on the secondary (Import) button; keep label on primary */
+  .btn-secondary .nav-btn-txt { display: none; }
+  .btn-secondary { padding: 8px 10px; min-width: 0; }
+  .btn-primary { padding: 9px 14px; font-size: 13.5px; }
+
+  /* — Hero — */
+  .hero { padding: 40px 16px 36px; }
+  .hero-eyebrow { font-size: 11.5px; margin-bottom: 18px; }
+  .hero-subtitle { font-size: 15px; margin-bottom: 32px; }
+
+  /* — Stats band: horizontal scroll on small screens — */
+  .stats-band {
+    width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .stats-band::-webkit-scrollbar { display: none; }
+  .stat-item { padding: 14px 22px; min-width: 96px; }
+  .stat-num { font-size: 30px; }
+  .stat-label { font-size: 11.5px; }
+
+  /* — Main — */
+  .main { padding: 24px 14px 80px; }
+
+  /* — Filter bar: stack everything — */
+  .filter-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .filter-search-wrap { width: 100%; min-width: 0; flex: none; }
+  .filter-select { width: 100%; }
+  .filter-tabs { width: 100%; }
+  .tab-btn { flex: 1; text-align: center; padding: 8px 8px; font-size: 13.5px; }
+  .faculty-bar { gap: 6px; }
+
+  /* — Cards — */
+  .students-grid { grid-template-columns: 1fr; gap: 12px; }
+  .card-foot { flex-wrap: wrap; gap: 6px; }
+  .card-time { margin-left: 0; width: 100%; text-align: right; }
+
+  /* — Modals: bottom-sheet pattern — */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    margin: 0;
+  }
+  .modal-header { padding: 16px 16px 12px; }
+  .modal-form,
+  .modal-detail-body { padding: 0 14px 20px; }
+
+  /* — Forms inside modals — */
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+  .form-actions { flex-direction: column-reverse; gap: 8px; }
+  .form-actions button { width: 100%; justify-content: center; }
+
+  /* — Detail modal — */
+  .det-grid { grid-template-columns: 1fr; }
+  .det-actions { flex-wrap: wrap; gap: 8px; }
+  .det-actions button { flex: 1; min-width: 130px; justify-content: center; }
+
+  /* — Toast: full-width at bottom — */
+  .toast-container {
+    left: 12px; right: 12px; bottom: 16px;
+    width: auto; max-width: none; align-items: stretch;
+  }
+  .toast { width: 100%; }
+
+  /* — Import modal — */
+  .imp-info { padding: 14px 15px; }
+  .imp-dropzone { padding: 28px 16px; }
+  .imp-cols { gap: 4px; }
+  .imp-col { font-size: 11.5px; padding: 2px 7px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
