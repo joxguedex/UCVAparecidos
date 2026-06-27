@@ -8,28 +8,40 @@
 const FACULTADES = {
   'Ciencias': [
     'Biología', 'Computación', 'Física',
-    'Matemáticas', 'Química', 'Estudios Ambientales'
+    'Matemáticas', 'Química', 'Geoquimica'
   ],
-  'Medicina': [
-    'Medicina', 'Enfermería', 'Bioanálisis', 'Nutrición y Dietética'
+  'Arquitectura y Urbanismo': [
+    'Arquitectura',
   ],
-  'Ingeniería': [
-    'Civil', 'Eléctrica', 'Mecánica', 'Química', 'Geodesia',
-    'Computación', 'Petróleo', 'Telecomunicaciones', 'Industrial', 'Biomédica'
+  'Ciencias Economicas y Sociales': [
+    'Ciencias Actuariales', 'Economía', 'Estadística', 'Contaduría',
+    'Estudios Internacionales', 'Administración', 'Sociología',
+    'Trabajo Social', 'Antropología'
   ],
-  'Odontología': ['Odontología'],
-  'Farmacia': ['Farmacia', 'Bioquímica'],
+  'Ciencias Jurídicas y Políticas': [
+    'Derecho', 'Estudios Políticos y Administrativos'
+  ],
+  'Farmacia': [
+    'Farmacia'
+  ], 
   'Humanidades y Educación': [
     'Letras', 'Historia', 'Filosofía', 'Psicología', 'Educación',
-    'Geografía', 'Comunicación Social', 'Trabajo Social', 'Artes'
+    'Geografía', 'Comunicación Social', 'Artes',
+    'Traducción', 'Traducción e Interpretación', 'Idiomas Modernos',
+    'Archivología', 'Bibliotecología', 
+  ],     
+  'Ingeniería': [
+    'Civil', 'Eléctrica', 'Mecánica', 'Química', 'Geodésica', 'Geofísica', 
+    'Geológica', 'Petróleo', 'Metalúrgica', 'Procesos Industriales', 'Minas',
+    'Hidrometereológica'  
   ],
-  'Derecho': ['Derecho'],
-  'Arquitectura y Urbanismo': ['Arquitectura', 'Urbanismo'],
-  'Ciencias Económicas y Sociales': [
-    'Economía', 'Administración y Contaduría',
-    'Estadística', 'Sociología', 'Trabajo Social', 'Antropología'
+  'Medicina': [
+    'Medicina', 'Enfermería', 'Bioanálisis', 'Nutrición y Dietética', 
+    'Salud Pública', 'Terapia Ocupasional', 'Cardiorrespiratorio',
+    'Radiología e Imagenología', 'Fisioterapia', 'Cardio Pulmonar'
   ],
-  'Agronomía': ['Ingeniería Agronómica', 'Forestal'],
+  'Odontología': ['Odontología'],
+  'Agronomía': ['Agronómia'],
   'Veterinaria': ['Medicina Veterinaria'],
 };
 
@@ -41,3 +53,4 @@ const Facultad = {
 };
 
 module.exports = Facultad;
+
