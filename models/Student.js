@@ -1,129 +1,217 @@
 'use strict';
-/**
- * models/Student.js
- * Toda la lógica de acceso a datos de estudiantes via Supabase.
- * Los controladores nunca tocan la BD directamente — pasan por aquí.
- */
 const { supabase } = require('../config/database');
+
+// Columnas para selects completos — resuelve FKs con embedded joins
+const SELECT_FULL = [
+  'id', 'nombre', 'cedula', 'semestre', 'ultima_ubicacion', 'descripcion',
+  'fecha_registro', 'registrado_por', 'fecha_aparecio',
+  'tipo_confirmacion', 'detalles_confirmacion',
+  'reportado_aparicion_por', 'contacto_reportador', 'tipo',
+  'estado(nombre)',
+  'carrera(nombre, facultad(nombre))',
+  'contacto(nombre, telefonos, relacion)',
+].join(', ');
+
+// Select liviano para chequeo de duplicados
+const SELECT_BRIEF = [
+  'id', 'nombre', 'cedula',
+  'estado(nombre)',
+  'carrera(nombre, facultad(nombre))',
+].join(', ');
+
+// Cache en memoria de IDs de estado: { desaparecido: 1, aparecido: 2, fallecido: 3 }
+let _estadoCache = null;
+async function estadoIds() {
+  if (_estadoCache) return _estadoCache;
+  const { data, error } = await supabase.from('estado').select('id, nombre');
+  if (error) throw new Error(error.message);
+  _estadoCache = {};
+  for (const e of data) _estadoCache[e.nombre] = e.id;
+  return _estadoCache;
+}
+
+// Transforma un raw Supabase (con JOINs anidados) al shape plano que espera el frontend
+function normalize(raw) {
+  const c = Array.isArray(raw.contacto) ? (raw.contacto[0] ?? {}) : {};
+  return {
+    id:                      raw.id,
+    nombre:                  raw.nombre,
+    cedula:                  raw.cedula,
+    semestre:                raw.semestre,
+    ultima_ubicacion:        raw.ultima_ubicacion,
+    descripcion:             raw.descripcion,
+    fecha_registro:          raw.fecha_registro,
+    registrado_por:          raw.registrado_por,
+    fecha_aparecio:          raw.fecha_aparecio,
+    tipo_confirmacion:       raw.tipo_confirmacion,
+    detalles_confirmacion:   raw.detalles_confirmacion,
+    reportado_aparicion_por: raw.reportado_aparicion_por,
+    contacto_reportador:     raw.contacto_reportador,
+    tipo:                    raw.tipo ?? 'Pregrado',
+    // FKs resueltos como texto:
+    estado:                  raw.estado?.nombre    ?? 'desaparecido',
+    carrera:                 raw.carrera?.nombre   ?? '',
+    facultad:                raw.carrera?.facultad?.nombre ?? '',
+    // Contacto (primer registro de la tabla contacto para este estudiante):
+    nombre_contacto:         c.nombre    ?? null,
+    relacion_contacto:       c.relacion  ?? null,
+    telefono_contacto:       c.telefonos ?? null,
+  };
+}
+
+function normalizeBrief(raw) {
+  return {
+    id:       raw.id,
+    nombre:   raw.nombre,
+    cedula:   raw.cedula,
+    estado:   raw.estado?.nombre            ?? 'desaparecido',
+    carrera:  raw.carrera?.nombre           ?? '',
+    facultad: raw.carrera?.facultad?.nombre ?? '',
+  };
+}
 
 const Student = {
 
-  /**
-   * Retorna lista de estudiantes con filtros opcionales.
-   * @param {{ facultad?, carrera?, estado?, q? }} filters
-   */
-  async findAll({ facultad, carrera, estado, q } = {}) {
-    let query = supabase.from('estudiantes').select('*');
-
-    if (facultad) query = query.eq('facultad', facultad);
-    if (carrera)  query = query.eq('carrera',  carrera);
-    if (estado)   query = query.eq('estado',   estado);
-    if (q)        query = query.or(`nombre.ilike.%${q}%,cedula.ilike.%${q}%`);
-
-    const { data, error } = await query
-      .order('estado',          { ascending: true  })
-      .order('fecha_registro',  { ascending: false });
+  async findAll() {
+    const { data, error } = await supabase
+      .from('estudiantes')
+      .select(SELECT_FULL)
+      .order('fecha_registro', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return data;
+    return (data ?? []).map(normalize);
   },
 
-  /** Retorna un estudiante por ID, o null si no existe. */
+  async findByCedula(cedula) {
+    const { data, error } = await supabase
+      .from('estudiantes')
+      .select(SELECT_BRIEF)
+      .eq('cedula', cedula)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? normalizeBrief(data) : null;
+  },
+
+  async findByNombreExacto(nombre) {
+    const { data, error } = await supabase
+      .from('estudiantes')
+      .select(SELECT_BRIEF)
+      .ilike('nombre', nombre);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(normalizeBrief);
+  },
+
   async findById(id) {
     const { data, error } = await supabase
       .from('estudiantes')
-      .select('*')
+      .select(SELECT_FULL)
       .eq('id', id)
-      .maybeSingle(); // null si no existe, no lanza error
-
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    return data;
+    return data ? normalize(data) : null;
   },
 
-  /** Registra un nuevo estudiante desaparecido. */
   async create(fields) {
     const {
-      nombre, cedula, facultad, carrera, semestre,
-      telefono_contacto, nombre_contacto, relacion_contacto,
-      ultima_ubicacion, descripcion, registrado_por
+      nombre, carrera: carreraNombre, cedula,
+      semestre, ultima_ubicacion, descripcion, registrado_por,
+      nombre_contacto, relacion_contacto, telefono_contacto,
     } = fields;
+
+    // Resolver carrera FK por nombre
+    const { data: carreraRow, error: carreraErr } = await supabase
+      .from('carrera')
+      .select('id')
+      .eq('nombre', carreraNombre)
+      .maybeSingle();
+    if (carreraErr) throw new Error(carreraErr.message);
+    if (!carreraRow) throw new Error(`Carrera no encontrada: ${carreraNombre}`);
+
+    // Resolver estado FK para 'desaparecido'
+    const ids = await estadoIds();
+    const estadoId = ids['desaparecido'];
+    if (!estadoId) throw new Error('Estado "desaparecido" no encontrado en la BD');
 
     const { data, error } = await supabase
       .from('estudiantes')
       .insert({
         nombre,
-        cedula:             cedula            || null,
-        facultad,
-        carrera,
-        semestre:           semestre          || null,
-        telefono_contacto:  telefono_contacto || null,
-        nombre_contacto:    nombre_contacto   || null,
-        relacion_contacto:  relacion_contacto || null,
-        ultima_ubicacion:   ultima_ubicacion  || null,
-        descripcion:        descripcion       || null,
-        registrado_por:     registrado_por    || null,
+        cedula:           cedula != null ? Number(cedula) : null,
+        carrera:          carreraRow.id,
+        estado:           estadoId,
+        semestre:         semestre         || null,
+        ultima_ubicacion: ultima_ubicacion || null,
+        descripcion:      descripcion      || null,
+        registrado_por:   registrado_por   || null,
       })
-      .select()
+      .select('id')
       .single();
 
     if (error) throw new Error(error.message);
-    return data;
+
+    // Insertar registro de contacto si se proporcionó información
+    if (nombre_contacto || telefono_contacto) {
+      const { error: cErr } = await supabase.from('contacto').insert({
+        nombre:     nombre_contacto   || null,
+        telefonos:  telefono_contacto || null,
+        relacion:   relacion_contacto || null,
+        estudiante: data.id,
+      });
+      if (cErr) console.error('[Student.create] contacto insert error:', cErr.message);
+    }
+
+    return this.findById(data.id);
   },
 
-  /** Marca un estudiante como aparecido con la info de confirmación. */
   async markFound(id, fields) {
     const {
       tipo_confirmacion,
       detalles_confirmacion,
       reportado_aparicion_por,
-      contacto_reportador
+      contacto_reportador,
     } = fields;
 
-    const { data, error } = await supabase
+    const ids = await estadoIds();
+    const { error } = await supabase
       .from('estudiantes')
       .update({
-        estado:                  'aparecido',
+        estado:                  ids['aparecido'],
         fecha_aparecio:          new Date().toISOString(),
         tipo_confirmacion,
         detalles_confirmacion:   detalles_confirmacion   || null,
         reportado_aparicion_por: reportado_aparicion_por || null,
         contacto_reportador:     contacto_reportador     || null,
       })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
 
     if (error) throw new Error(error.message);
-    return data;
+    return this.findById(id);
   },
 
-  /** Registra el fallecimiento confirmado de un estudiante. */
   async markDeceased(id, fields) {
     const {
       tipo_confirmacion_deceso,
       detalles_confirmacion,
       reportado_aparicion_por,
-      contacto_reportador
+      contacto_reportador,
     } = fields;
 
-    const { data, error } = await supabase
+    const ids = await estadoIds();
+    const { error } = await supabase
       .from('estudiantes')
       .update({
-        estado:                  'fallecido',
+        estado:                  ids['fallecido'],
         fecha_aparecio:          new Date().toISOString(),
         tipo_confirmacion:       tipo_confirmacion_deceso || 'otro',
         detalles_confirmacion:   detalles_confirmacion   || null,
         reportado_aparicion_por: reportado_aparicion_por || null,
         contacto_reportador:     contacto_reportador     || null,
       })
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('id', id);
 
     if (error) throw new Error(error.message);
-    return data;
+    return this.findById(id);
   },
-
 };
 
 module.exports = Student;

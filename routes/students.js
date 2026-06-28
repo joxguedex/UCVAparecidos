@@ -9,14 +9,15 @@
  * PUT    /api/estudiantes/:id/aparecio → confirmar aparición
  */
 const { Router } = require('express');
-const ctrl       = require('../controllers/studentController');
+const ctrl            = require('../controllers/studentController');
+const { writeLimiter } = require('../middleware/limiters');
 
 const router = Router();
 
-router.get  ('/',                ctrl.getAll);
-router.get  ('/:id',             ctrl.getOne);
-router.post ('/',                ctrl.create);
-router.put  ('/:id/aparecio',    ctrl.markFound);
-router.put  ('/:id/fallecio',    ctrl.markDeceased);
+router.get  ('/',               ctrl.getAll);
+router.get  ('/:id',            ctrl.getOne);
+router.post ('/',               writeLimiter, ctrl.create);
+router.put  ('/:id/aparecio',   writeLimiter, ctrl.markFound);
+router.put  ('/:id/fallecio',   writeLimiter, ctrl.markDeceased);
 
 module.exports = router;

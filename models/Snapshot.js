@@ -28,12 +28,12 @@ const Snapshot = {
   async create() {
     const { data: estudiantes, error: eErr } = await supabase
       .from('estudiantes')
-      .select('estado');
+      .select('estado(nombre)');
     if (eErr) throw new Error(eErr.message);
 
-    const desaparecidos = estudiantes.filter(s => s.estado === 'desaparecido').length;
-    const aparecidos    = estudiantes.filter(s => s.estado === 'aparecido').length;
-    const fallecidos    = estudiantes.filter(s => s.estado === 'fallecido').length;
+    const desaparecidos = estudiantes.filter(s => s.estado?.nombre === 'desaparecido').length;
+    const aparecidos    = estudiantes.filter(s => s.estado?.nombre === 'aparecido').length;
+    const fallecidos    = estudiantes.filter(s => s.estado?.nombre === 'fallecido').length;
     const total         = estudiantes.length;
 
     const { data, error } = await supabase
@@ -45,7 +45,6 @@ const Snapshot = {
     return data;
   },
 
-  /** Toma un snapshot solo si han pasado más de 12 horas desde el último. */
   async autoCapture() {
     const last = await this.latest();
     if (last) {

@@ -1,79 +1,125 @@
 'use strict';
-/**
- * controllers/studentController.js
- * Maneja las peticiones HTTP de estudiantes.
- * Valida la entrada, delega al modelo y responde con JSON.
- */
 const Student = require('../models/Student');
 
-exports.getAll = async (req, res) => {
+const VALID_CONF = new Set([
+  'contacto_directo', 'llamada_telefonica', 'mensaje_texto',
+  'video', 'presencia_fisica', 'tercero_confiable', 'redes_sociales', 'otro',
+]);
+
+const VALID_CONF_DECESO = new Set([
+  'hospital', 'familiar', 'rescate', 'documentacion_oficial', 'otro',
+]);
+
+function parseId(raw) {
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function parseCedula(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const digits = String(raw).replace(/\D/g, '');
+  if (!digits) return null;
+  const n = parseInt(digits, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function internalError(res, err, ctx) {
+  console.error(`[${ctx}]`, err.message);
+  res.status(500).json({ error: 'Error interno del servidor. Intenta de nuevo.' });
+}
+
+exports.getAll = async (_req, res) => {
   try {
-    res.json(await Student.findAll(req.query));
+    res.json(await Student.findAll());
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    internalError(res, err, 'getAll');
   }
 };
 
 exports.getOne = async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID no válido' });
   try {
-    const student = await Student.findById(req.params.id);
+    const student = await Student.findById(id);
     if (!student) return res.status(404).json({ error: 'Estudiante no encontrado' });
     res.json(student);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    internalError(res, err, 'getOne');
   }
 };
 
 exports.create = async (req, res) => {
-  const { nombre, facultad, carrera } = req.body;
+  const { nombre, carrera, forzar } = req.body;
+  const cedula = parseCedula(req.body.cedula);
 
-  if (!nombre?.trim())   return res.status(400).json({ error: 'El nombre es requerido' });
-  if (!facultad?.trim()) return res.status(400).json({ error: 'La facultad es requerida' });
-  if (!carrera?.trim())  return res.status(400).json({ error: 'La carrera es requerida' });
+  if (!nombre?.trim())  return res.status(400).json({ error: 'El nombre es requerido' });
+  if (!carrera?.trim()) return res.status(400).json({ error: 'La carrera es requerida' });
 
   try {
-    res.status(201).json(await Student.create(req.body));
+    if (cedula !== null) {
+      const existente = await Student.findByCedula(cedula);
+      if (existente) {
+        return res.status(409).json({
+          error: `Ya existe un estudiante con la cédula ${cedula}`,
+          tipo: 'cedula_duplicada',
+          existente,
+        });
+      }
+    }
+
+    if (forzar !== 'true' && forzar !== true) {
+      const existentes = await Student.findByNombreExacto(nombre.trim());
+      if (existentes.length) {
+        return res.status(409).json({
+          error: `Ya existe un estudiante con el nombre "${nombre.trim()}"`,
+          tipo: 'nombre_duplicado',
+          existentes,
+        });
+      }
+    }
+
+    res.status(201).json(await Student.create({ ...req.body, cedula }));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    internalError(res, err, 'create');
   }
 };
 
 exports.markFound = async (req, res) => {
-  const { tipo_confirmacion } = req.body;
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID no válido' });
 
-  if (!tipo_confirmacion?.trim()) {
-    return res.status(400).json({ error: 'El tipo de confirmación es requerido' });
-  }
+  const { tipo_confirmacion } = req.body;
+  if (!tipo_confirmacion?.trim())   return res.status(400).json({ error: 'El tipo de confirmación es requerido' });
+  if (!VALID_CONF.has(tipo_confirmacion)) return res.status(400).json({ error: 'Tipo de confirmación no reconocido' });
 
   try {
-    const existing = await Student.findById(req.params.id);
+    const existing = await Student.findById(id);
     if (!existing) return res.status(404).json({ error: 'Estudiante no encontrado' });
     if (existing.estado !== 'desaparecido') {
       return res.status(409).json({ error: 'Solo se pueden marcar como aparecidos estudiantes desaparecidos' });
     }
-
-    res.json(await Student.markFound(req.params.id, req.body));
+    res.json(await Student.markFound(id, req.body));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    internalError(res, err, 'markFound');
   }
 };
 
 exports.markDeceased = async (req, res) => {
-  const { tipo_confirmacion_deceso } = req.body;
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID no válido' });
 
-  if (!tipo_confirmacion_deceso?.trim()) {
-    return res.status(400).json({ error: 'El tipo de confirmación es requerido' });
-  }
+  const { tipo_confirmacion_deceso } = req.body;
+  if (!tipo_confirmacion_deceso?.trim())        return res.status(400).json({ error: 'El tipo de confirmación es requerido' });
+  if (!VALID_CONF_DECESO.has(tipo_confirmacion_deceso)) return res.status(400).json({ error: 'Tipo de confirmación de deceso no reconocido' });
 
   try {
-    const existing = await Student.findById(req.params.id);
+    const existing = await Student.findById(id);
     if (!existing) return res.status(404).json({ error: 'Estudiante no encontrado' });
     if (existing.estado !== 'desaparecido') {
       return res.status(409).json({ error: 'Solo se pueden registrar como fallecidos estudiantes desaparecidos' });
     }
-
-    res.json(await Student.markDeceased(req.params.id, req.body));
+    res.json(await Student.markDeceased(id, req.body));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    internalError(res, err, 'markDeceased');
   }
 };

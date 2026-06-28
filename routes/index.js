@@ -8,7 +8,6 @@ const { Router }    = require('express');
 const students      = require('./students');
 const stats         = require('./stats');
 const facultades    = require('./facultades');
-const importar      = require('./import');
 const snapshots     = require('./snapshots');
 
 const router = Router();
@@ -16,7 +15,6 @@ const router = Router();
 router.use('/estudiantes', students);
 router.use('/stats',       stats);
 router.use('/facultades',  facultades);
-router.use('/importar',    importar);
 router.use('/snapshots',   snapshots);
 
 module.exports = router;

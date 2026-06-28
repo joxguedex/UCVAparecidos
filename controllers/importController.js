@@ -129,7 +129,10 @@ exports.importExcel = async (req, res) => {
   let insertados = 0;
   for (let i = 0; i < records.length; i += BATCH) {
     const { error } = await supabase.from('estudiantes').insert(records.slice(i, i + BATCH));
-    if (error) return res.status(500).json({ error: 'Error al guardar en Supabase: ' + error.message });
+    if (error) {
+      console.error('[importController]', error.message);
+      return res.status(500).json({ error: 'Error al guardar los registros. Intenta de nuevo.' });
+    }
     insertados += Math.min(BATCH, records.length - i);
   }
 

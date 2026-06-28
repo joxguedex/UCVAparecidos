@@ -36,7 +36,7 @@ const FAC_MAP = {
   'fhye':   'Humanidades y Educación',
   'fm':     'Medicina',
   'fc':     'Ciencias',
-  'fcjp':   'Derecho',
+  'fcjp':   'Ciencias Jurídicas y Políticas',
   'ff':     'Farmacia',
   'fi':     'Ingeniería',
   'fo':     'Odontología',

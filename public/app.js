@@ -16,7 +16,13 @@ const api = {
       body: JSON.stringify(body)
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    if (!r.ok) {
+      const err = new Error(data.error || `HTTP ${r.status}`);
+      if (data.tipo)       err.tipo       = data.tipo;
+      if (data.existente)  err.existente  = data.existente;
+      if (data.existentes) err.existentes = data.existentes;
+      throw err;
+    }
     return data;
   },
   async put(url, body) {
@@ -36,9 +42,10 @@ const api = {
 // ─────────────────────────────────────────
 const state = {
   facultades: {},
-  students: [],
+  allStudents: [],  // copia completa del servidor
+  students: [],     // vista filtrada
   stats: null,
-  filters: { q: '', facultad: '', carrera: '', estado: '' }
+  filters: { q: '', facultad: '', carrera: '', estado: '', sort: 'fecha_desc', con_contacto: false }
 };
 
 const $ = id => document.getElementById(id);
@@ -66,12 +73,12 @@ const DEATH_CONF = {
 };
 
 const FAC_TAG = {
-  'Ciencias':                     'tag-f-ciencias',
-  'Medicina':                     'tag-f-medicina',
-  'Ingeniería':                   'tag-f-ingenieria',
-  'Derecho':                      'tag-f-derecho',
-  'Humanidades y Educación':      'tag-f-humanidades',
-  'Arquitectura y Urbanismo':     'tag-f-arquit',
+  'Ciencias':                       'tag-f-ciencias',
+  'Medicina':                       'tag-f-medicina',
+  'Ingeniería':                     'tag-f-ingenieria',
+  'Ciencias Jurídicas y Políticas': 'tag-f-derecho',
+  'Humanidades y Educación':        'tag-f-humanidades',
+  'Arquitectura y Urbanismo':       'tag-f-arquit',
   'Ciencias Económicas y Sociales': 'tag-f-faces',
 };
 
@@ -148,7 +155,7 @@ function renderFacultyBar() {
       $('filter-facultad').value = state.filters.facultad;
       updateCareerSelect('filter-carrera', state.filters.facultad);
       renderFacultyBar();
-      loadStudents();
+      applyFilters();
     });
   });
 }
@@ -258,18 +265,125 @@ function renderCard(s) {
 }
 
 // ─────────────────────────────────────────
+//  Helpers: filtros
+// ─────────────────────────────────────────
+function hasActiveFilters() {
+  return !!(state.filters.q || state.filters.facultad || state.filters.carrera || state.filters.estado || state.filters.con_contacto);
+}
+
+function clearFilters() {
+  state.filters = { q: '', facultad: '', carrera: '', estado: '', sort: state.filters.sort, con_contacto: false };
+  $('filter-q').value = '';
+  $('filter-facultad').value = '';
+  updateCareerSelect('filter-carrera', '');
+  document.querySelectorAll('.tab-btn[data-estado]').forEach(b => b.classList.toggle('active', b.dataset.estado === ''));
+  const cc = $('btn-con-contacto');
+  if (cc) { cc.classList.remove('active'); cc.setAttribute('aria-pressed', 'false'); }
+  renderFacultyBar();
+  applyFilters();
+}
+
+function buildFilterChips() {
+  const chips = [];
+  const estadoLabels = { desaparecido: 'Desaparecidos', aparecido: 'Aparecidos', fallecido: 'Fallecidos' };
+  if (state.filters.estado)      chips.push({ key: 'estado',      label: estadoLabels[state.filters.estado] || state.filters.estado });
+  if (state.filters.facultad)    chips.push({ key: 'facultad',    label: state.filters.facultad });
+  if (state.filters.carrera)     chips.push({ key: 'carrera',     label: state.filters.carrera });
+  if (state.filters.q)           chips.push({ key: 'q',           label: `"${state.filters.q}"` });
+  if (state.filters.con_contacto) chips.push({ key: 'con_contacto', label: 'Con contacto' });
+  return chips;
+}
+
+function removeFilterChip(key) {
+  if (key === 'estado') {
+    state.filters.estado = '';
+    document.querySelectorAll('.tab-btn[data-estado]').forEach(b => b.classList.toggle('active', b.dataset.estado === ''));
+  } else if (key === 'facultad') {
+    state.filters.facultad = '';
+    state.filters.carrera  = '';
+    $('filter-facultad').value = '';
+    updateCareerSelect('filter-carrera', '');
+    renderFacultyBar();
+  } else if (key === 'carrera') {
+    state.filters.carrera = '';
+    $('filter-carrera').value = '';
+  } else if (key === 'q') {
+    state.filters.q = '';
+    $('filter-q').value = '';
+  } else if (key === 'con_contacto') {
+    state.filters.con_contacto = false;
+    const b = $('btn-con-contacto');
+    if (b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); }
+  }
+  applyFilters();
+}
+
+// Filtra state.allStudents en el cliente y actualiza state.students + grid.
+// No toca la red — solo se llama al servidor al mutar datos o en el init.
+function applyFilters() {
+  const { q, facultad, carrera, estado, sort, con_contacto } = state.filters;
+  let list = state.allStudents;
+
+  if (estado)       list = list.filter(s => s.estado   === estado);
+  if (facultad)     list = list.filter(s => s.facultad === facultad);
+  if (carrera)      list = list.filter(s => s.carrera  === carrera);
+  if (con_contacto) list = list.filter(s => s.nombre_contacto || s.telefono_contacto);
+  if (q) {
+    const qLow  = q.trim().toLowerCase();
+    const isNum = /^\d+$/.test(qLow);
+    list = list.filter(s => {
+      const nameMatch = s.nombre.toLowerCase().includes(qLow);
+      const cedMatch  = isNum && s.cedula != null && String(s.cedula).includes(qLow);
+      return nameMatch || cedMatch;
+    });
+  }
+
+  list = [...list].sort((a, b) => {
+    switch (sort || 'fecha_desc') {
+      case 'fecha_asc':  return new Date(a.fecha_registro) - new Date(b.fecha_registro);
+      case 'nombre_az':  return a.nombre.localeCompare(b.nombre, 'es');
+      case 'nombre_za':  return b.nombre.localeCompare(a.nombre, 'es');
+      default:           return new Date(b.fecha_registro) - new Date(a.fecha_registro);
+    }
+  });
+
+  state.students = list;
+  renderGrid();
+}
+
+// ─────────────────────────────────────────
 //  Render: grid
 // ─────────────────────────────────────────
 function renderGrid() {
   const grid = $('students-grid');
+  const countBar = $('result-count-bar');
+  const chips = buildFilterChips();
+
   if (!state.students.length) {
+    if (countBar) countBar.innerHTML = '';
     grid.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon" aria-hidden="true">🔍</div>
         <h3>No se encontraron estudiantes</h3>
         <p>Prueba con otros filtros o registra un nuevo caso.</p>
+        ${hasActiveFilters() ? '<button class="btn-secondary btn-clear-filters" id="btn-clear-filters">Limpiar filtros</button>' : ''}
       </div>`;
+    const clearBtn = $('btn-clear-filters');
+    if (clearBtn) clearBtn.addEventListener('click', clearFilters);
     return;
+  }
+
+  if (countBar) {
+    const n = state.students.length;
+    const chipsHtml = chips.map(c =>
+      `<span class="filter-chip">${esc(c.label)}<button class="chip-remove" data-chip="${esc(c.key)}" aria-label="Quitar filtro ${esc(c.label)}">×</button></span>`
+    ).join('');
+    countBar.innerHTML = `<span class="count-num">${n} estudiante${n !== 1 ? 's' : ''}</span>${chipsHtml}${chips.length ? `<button class="count-clear" id="btn-count-clear">Limpiar todo</button>` : ''}`;
+    countBar.querySelectorAll('.chip-remove').forEach(btn =>
+      btn.addEventListener('click', () => removeFilterChip(btn.dataset.chip))
+    );
+    const cc = $('btn-count-clear');
+    if (cc) cc.addEventListener('click', clearFilters);
   }
 
   grid.innerHTML = state.students.map(renderCard).join('');
@@ -279,7 +393,7 @@ function renderGrid() {
       e.stopPropagation();
       const id = parseInt(btn.dataset.id);
       if (btn.dataset.action === 'detail') openDetailModal(id);
-      if (btn.dataset.action === 'found')  openFoundModal(id);
+      if (btn.dataset.action === 'found')  confirmAndMark(id, 'found');
     });
   });
 
@@ -293,13 +407,145 @@ function renderGrid() {
 }
 
 // ─────────────────────────────────────────
-//  Modal helpers
+//  Confirm modal
 // ─────────────────────────────────────────
+let _confirmCallback = null;
+let _lastSyncTime    = null;
+
+function openConfirmModal({ title, message, btnLabel, btnCls, onConfirm }) {
+  $('conf-title').textContent = title;
+  $('conf-message').innerHTML = message;
+  const btn = $('btn-conf-ok');
+  btn.textContent = btnLabel;
+  btn.className = btnCls;
+  _confirmCallback = onConfirm;
+  openModal('modal-confirmar');
+}
+
+function confirmAndMark(id, action) {
+  const s = state.students.find(x => x.id === id) || state.allStudents.find(x => x.id === id);
+  if (!s) return;
+  if (action === 'found') {
+    openConfirmModal({
+      title:    'Confirmar aparición',
+      message:  `¿Confirmas que <strong>${esc(s.nombre)}</strong> ha aparecido? Esto actualizará el estado público del caso de forma permanente.`,
+      btnLabel: 'Sí, confirmar aparición',
+      btnCls:   'btn-found',
+      onConfirm: () => openFoundModal(id)
+    });
+  } else {
+    openConfirmModal({
+      title:    'Reportar fallecimiento',
+      message:  `¿Confirmas el fallecimiento de <strong>${esc(s.nombre)}</strong>? Esta acción es permanente e irreversible. Asegúrate de que la información es correcta antes de continuar.`,
+      btnLabel: 'Sí, reportar fallecimiento',
+      btnCls:   'btn-deceased',
+      onConfirm: () => openDeceasedModal(id)
+    });
+  }
+}
+
+// ─────────────────────────────────────────
+//  Deep-link
+// ─────────────────────────────────────────
+function checkDeepLink() {
+  const id = parseInt(new URLSearchParams(location.search).get('id'));
+  if (id && state.allStudents.find(s => s.id === id)) openDetailModal(id);
+}
+
+// ─────────────────────────────────────────
+//  Realtime polling (#1)
+// ─────────────────────────────────────────
+function updateSyncLabel() {
+  const el = $('last-sync');
+  if (!el || !_lastSyncTime) return;
+  const ago = Math.floor((Date.now() - _lastSyncTime) / 1000);
+  el.textContent = ago < 60
+    ? '· actualizado hace un momento'
+    : `· actualizado hace ${Math.floor(ago / 60)} min`;
+}
+
+async function poll() {
+  try {
+    const fresh      = await api.get('/api/estudiantes');
+    const freshKey   = fresh.map(s => `${s.id}:${s.estado}`).sort().join(',');
+    const currentKey = state.allStudents.map(s => `${s.id}:${s.estado}`).sort().join(',');
+    const changed    = freshKey !== currentKey;
+    state.allStudents = fresh;
+    _lastSyncTime = Date.now();
+    updateSyncLabel();
+    if (changed) {
+      applyFilters();
+      await loadStats();
+    }
+  } catch {
+    // silent — network errors during polling should not disrupt the UI
+  }
+}
+
+function startRealtime() {
+  _lastSyncTime = Date.now();
+  updateSyncLabel();
+  setInterval(poll, 60000);
+  setInterval(updateSyncLabel, 30000);
+}
+
+// ─────────────────────────────────────────
+//  Export CSV (#12)
+// ─────────────────────────────────────────
+function exportCSV() {
+  const list = state.students;
+  if (!list.length) { toast('No hay datos para exportar', 'info'); return; }
+
+  const headers = [
+    'Nombre', 'Cédula', 'Facultad', 'Carrera', 'Semestre',
+    'Estado', 'Última ubicación', 'Fecha registro',
+    'Contacto nombre', 'Teléfono contacto',
+  ];
+  const rows = list.map(s => [
+    s.nombre,
+    s.cedula            ?? '',
+    s.facultad,
+    s.carrera,
+    s.semestre          ?? '',
+    s.estado,
+    s.ultima_ubicacion  ?? '',
+    formatDate(s.fecha_registro),
+    s.nombre_contacto   ?? '',
+    s.telefono_contacto ?? '',
+  ]);
+
+  const csv = [headers, ...rows]
+    .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `ucv-aparecidos-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`${list.length} registro${list.length !== 1 ? 's' : ''} exportado${list.length !== 1 ? 's' : ''}`, 'success');
+}
+
+// ─────────────────────────────────────────
+//  Modal helpers + focus trap (D2/D3)
+// ─────────────────────────────────────────
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let _modalTrigger = null;
+
 function openModal(id) {
+  _modalTrigger = document.activeElement;
   const el = $(id);
   el.classList.add('open');
   el.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => {
+    const first = el.querySelector(FOCUSABLE);
+    if (first) first.focus();
+  });
 }
 
 function closeModal(id) {
@@ -308,6 +554,20 @@ function closeModal(id) {
   el.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
   document.dispatchEvent(new CustomEvent('modalClosed', { detail: id }));
+  if (_modalTrigger) { _modalTrigger.focus(); _modalTrigger = null; }
+}
+
+function trapFocus(overlay, e) {
+  if (e.key !== 'Tab' || !overlay.classList.contains('open')) return;
+  const focusable = [...overlay.querySelectorAll(FOCUSABLE)];
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last  = focusable[focusable.length - 1];
+  if (e.shiftKey) {
+    if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+  } else {
+    if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+  }
 }
 
 // ─────────────────────────────────────────
@@ -386,7 +646,7 @@ function openDetailModal(id) {
       <div class="det-grid">
         ${s.nombre_contacto ? `<div class="det-field"><span class="det-fl">Nombre</span><span class="det-fv">${esc(s.nombre_contacto)}</span></div>` : ''}
         ${s.relacion_contacto ? `<div class="det-field"><span class="det-fl">Relación</span><span class="det-fv">${esc(s.relacion_contacto)}</span></div>` : ''}
-        ${s.telefono_contacto ? `<div class="det-field" style="grid-column:1/-1"><span class="det-fl">Teléfono</span><span class="det-fv mono">${esc(s.telefono_contacto)}</span></div>` : ''}
+        ${s.telefono_contacto ? `<div class="det-field" style="grid-column:1/-1"><span class="det-fl">Teléfono</span><span class="det-fv mono"><a href="tel:${esc(s.telefono_contacto)}" class="tel-link">${esc(s.telefono_contacto)}</a></span></div>` : ''}
       </div>
     </div>` : ''}
 
@@ -422,11 +682,49 @@ function openDetailModal(id) {
       </div>
     </div>` : ''}
 
+    <div class="det-section">
+      <div class="det-sec-title">Línea de tiempo</div>
+      <div class="timeline">
+        <div class="tl-item tl-register">
+          <div class="tl-dot"></div>
+          <div class="tl-content">
+            <div class="tl-label">Caso registrado</div>
+            <div class="tl-date">${formatDate(s.fecha_registro)}</div>
+            ${s.registrado_por ? `<div class="tl-sub">por ${esc(s.registrado_por)}</div>` : ''}
+          </div>
+        </div>
+        ${s.fecha_aparecio ? `
+          <div class="tl-connector"></div>
+          <div class="tl-item ${s.estado === 'aparecido' ? 'tl-aparecido' : 'tl-fallecido'}">
+            <div class="tl-dot"></div>
+            <div class="tl-content">
+              <div class="tl-label">${s.estado === 'aparecido' ? 'Aparición confirmada' : 'Fallecimiento reportado'}</div>
+              <div class="tl-date">${formatDate(s.fecha_aparecio)}</div>
+              ${s.reportado_aparicion_por ? `<div class="tl-sub">por ${esc(s.reportado_aparicion_por)}</div>` : ''}
+            </div>
+          </div>
+        ` : `
+          <div class="tl-connector tl-connector-dashed"></div>
+          <div class="tl-item tl-pending">
+            <div class="tl-dot tl-dot-pending"></div>
+            <div class="tl-content">
+              <div class="tl-label">En búsqueda activa</div>
+              <div class="tl-date">${timeAgo(s.fecha_registro)}</div>
+            </div>
+          </div>
+        `}
+      </div>
+    </div>
+
     <div class="det-actions">
       ${missing ? `
         <button class="btn-found" id="det-btn-found" data-id="${s.id}">Marcar como aparecido</button>
         <button class="btn-deceased" id="det-btn-fall" data-id="${s.id}">Reportar fallecimiento</button>
       ` : ''}
+      <button class="btn-secondary" id="det-btn-share" data-id="${s.id}" title="Compartir enlace a este caso">
+        <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Compartir
+      </button>
       <button class="btn-secondary" data-close="modal-detalle">Cerrar</button>
     </div>
   `;
@@ -437,12 +735,25 @@ function openDetailModal(id) {
   const bf = $('det-btn-found');
   if (bf) bf.addEventListener('click', () => {
     closeModal('modal-detalle');
-    openFoundModal(parseInt(bf.dataset.id));
+    confirmAndMark(parseInt(bf.dataset.id), 'found');
   });
   const bfall = $('det-btn-fall');
   if (bfall) bfall.addEventListener('click', () => {
     closeModal('modal-detalle');
-    openDeceasedModal(parseInt(bfall.dataset.id));
+    confirmAndMark(parseInt(bfall.dataset.id), 'deceased');
+  });
+  const bshare = $('det-btn-share');
+  if (bshare) bshare.addEventListener('click', () => {
+    const shareId = parseInt(bshare.dataset.id);
+    const url = `${location.origin}${location.pathname}?id=${shareId}`;
+    const nombre = state.allStudents.find(x => x.id === shareId)?.nombre || '';
+    if (navigator.share) {
+      navigator.share({ title: `UCV Aparecidos — ${nombre}`, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url)
+        .then(() => toast('Enlace copiado al portapapeles', 'success'))
+        .catch(() => toast('No se pudo copiar el enlace', 'error'));
+    }
   });
 
   openModal('modal-detalle');
@@ -462,6 +773,29 @@ function openFoundModal(id) {
   $('fa-student-id').value = id;
 
   openModal('modal-aparecido');
+}
+
+// ─────────────────────────────────────────
+//  Duplicate-name warning modal
+// ─────────────────────────────────────────
+function openDuplicateModal(existentes, onForce) {
+  const list = $('dup-list');
+  list.innerHTML = existentes.map(e => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin-bottom:.5rem">
+      <strong>${esc(e.nombre)}</strong>
+      <span class="tag ${e.estado === 'desaparecido' ? 'tag-missing' : e.estado === 'fallecido' ? 'tag-deceased' : 'tag-found'}" style="margin-left:.5rem">${e.estado}</span>
+      <div style="font-size:.8rem;color:var(--text-sec);margin-top:.3rem">
+        ${esc(e.facultad)} · ${esc(e.carrera)}${e.cedula ? ` · <span class="mono">${esc(e.cedula)}</span>` : ''}
+      </div>
+    </div>`).join('');
+
+  // Rebind force button to avoid stacking listeners
+  const old = $('btn-dup-force');
+  const fresh = old.cloneNode(true);
+  old.parentNode.replaceChild(fresh, old);
+  fresh.addEventListener('click', () => { closeModal('modal-duplicado'); onForce(); });
+
+  openModal('modal-duplicado');
 }
 
 // ─────────────────────────────────────────
@@ -488,24 +822,40 @@ async function loadStats() {
     state.stats = await api.get('/api/stats');
     renderStats();
     renderFacultyBar();
-  } catch { /* silent */ }
+  } catch {
+    toast('No se pudieron cargar las estadísticas. Recarga la página.', 'error');
+  }
+}
+
+function skeletonGrid() {
+  return Array(6).fill(null).map(() => `
+    <article class="s-card s-skeleton" aria-hidden="true">
+      <div class="sk-header"></div>
+      <div class="card-body">
+        <div class="card-head">
+          <div class="sk-avatar"></div>
+          <div class="sk-info">
+            <div class="sk-line sk-name"></div>
+            <div class="sk-line sk-tag"></div>
+            <div class="sk-line sk-career"></div>
+          </div>
+        </div>
+        <div class="sk-line sk-detail"></div>
+        <div class="sk-line sk-detail" style="width:52%"></div>
+      </div>
+      <div class="card-foot" style="border-top:1px solid var(--border)">
+        <div class="sk-line" style="height:34px;border-radius:6px;flex:1"></div>
+      </div>
+    </article>`).join('');
 }
 
 async function loadStudents() {
-  const grid = $('students-grid');
-  grid.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><p>Cargando…</p></div>';
-
-  const p = new URLSearchParams();
-  if (state.filters.q)       p.set('q',       state.filters.q);
-  if (state.filters.facultad) p.set('facultad', state.filters.facultad);
-  if (state.filters.carrera)  p.set('carrera',  state.filters.carrera);
-  if (state.filters.estado)   p.set('estado',   state.filters.estado);
-
+  $('students-grid').innerHTML = skeletonGrid();
   try {
-    state.students = await api.get(`/api/estudiantes?${p}`);
-    renderGrid();
+    state.allStudents = await api.get('/api/estudiantes');
+    applyFilters();
   } catch (err) {
-    grid.innerHTML = `
+    $('students-grid').innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">⚠️</div>
         <h3>Error al cargar</h3>
@@ -522,7 +872,9 @@ async function loadFacultades() {
     ).join('');
     $('filter-facultad').insertAdjacentHTML('beforeend', opts);
     $('ff-facultad').insertAdjacentHTML('beforeend', opts);
-  } catch { /* silent */ }
+  } catch {
+    toast('No se pudo cargar el catálogo de facultades. Recarga la página.', 'error');
+  }
 }
 
 // ─────────────────────────────────────────
@@ -561,24 +913,38 @@ function toast(msg, type = 'info') {
 // ─────────────────────────────────────────
 //  Form: register missing
 // ─────────────────────────────────────────
-$('form-desaparecido').addEventListener('submit', async e => {
-  e.preventDefault();
+async function submitDesaparecido(form, forzar = false) {
   const btn = $('btn-submit-des');
   btn.disabled = true; btn.textContent = 'Registrando…';
 
-  const data = Object.fromEntries(new FormData(e.target));
+  const data = Object.fromEntries(new FormData(form));
+  if (forzar) data.forzar = 'true';
+
   try {
     await api.post('/api/estudiantes', data);
     closeModal('modal-desaparecido');
-    e.target.reset();
+    form.reset();
     $('ff-carrera').disabled = true;
     toast('Estudiante registrado. La comunidad UCV está buscando.', 'info');
     await Promise.all([loadStudents(), loadStats()]);
   } catch (err) {
-    toast('Error: ' + err.message, 'error');
+    if (err.tipo === 'cedula_duplicada') {
+      const ex = err.existente;
+      toast(`Cédula ya registrada: ${ex.nombre} (${ex.estado}) — ${ex.facultad}`, 'error');
+    } else if (err.tipo === 'nombre_duplicado') {
+      openDuplicateModal(err.existentes, () => submitDesaparecido(form, true));
+    } else {
+      toast('Error: ' + err.message, 'error');
+    }
   } finally {
     btn.disabled = false; btn.textContent = 'Registrar estudiante';
   }
+}
+
+$('form-desaparecido').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!validateRequired(e.target, ['nombre', 'facultad', 'carrera'])) return;
+  submitDesaparecido(e.target);
 });
 
 // ─────────────────────────────────────────
@@ -586,6 +952,7 @@ $('form-desaparecido').addEventListener('submit', async e => {
 // ─────────────────────────────────────────
 $('form-aparecido').addEventListener('submit', async e => {
   e.preventDefault();
+  if (!validateRequired(e.target, ['tipo_confirmacion'])) return;
   const btn = $('btn-submit-apar');
   btn.disabled = true; btn.textContent = 'Confirmando…';
 
@@ -615,6 +982,7 @@ $('form-aparecido').addEventListener('submit', async e => {
 // ─────────────────────────────────────────
 $('form-fallecido').addEventListener('submit', async e => {
   e.preventDefault();
+  if (!validateRequired(e.target, ['tipo_confirmacion_deceso'])) return;
   const btn = $('btn-submit-fall');
   btn.disabled = true; btn.textContent = 'Confirmando…';
 
@@ -640,130 +1008,22 @@ $('form-fallecido').addEventListener('submit', async e => {
 });
 
 // ─────────────────────────────────────────
-//  Import Excel modal
-// ─────────────────────────────────────────
-(function initImport() {
-  let selectedFile = null;
-
-  const dropzone   = $('imp-dropzone');
-  const fileInput  = $('imp-file-input');
-  const fileLabel  = $('imp-dz-file');
-  const fileName   = $('imp-file-name');
-  const removeBtn  = $('imp-remove-file');
-  const importBtn  = $('btn-do-import');
-  const results    = $('imp-results');
-
-  function setFile(file) {
-    if (!file) return;
-    if (!/\.(xlsx|xls)$/i.test(file.name)) {
-      toast('Solo se aceptan archivos .xlsx o .xls', 'error');
-      return;
-    }
-    selectedFile = file;
-    fileName.textContent = file.name;
-    fileLabel.style.display = 'flex';
-    importBtn.disabled = false;
-    results.style.display = 'none';
-  }
-
-  function clearFile() {
-    selectedFile = null;
-    fileInput.value = '';
-    fileLabel.style.display = 'none';
-    importBtn.disabled = true;
-    results.style.display = 'none';
-  }
-
-  dropzone.addEventListener('click', e => {
-    if (e.target === removeBtn) return;
-    fileInput.click();
-  });
-  dropzone.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') fileInput.click();
-  });
-  fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
-  removeBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
-
-  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
-  dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.classList.remove('drag-over');
-    setFile(e.dataTransfer.files[0]);
-  });
-
-  importBtn.addEventListener('click', async () => {
-    if (!selectedFile) return;
-    importBtn.disabled = true;
-    importBtn.classList.add('btn-loading');
-    importBtn.textContent = 'Importando…';
-    results.style.display = 'none';
-
-    const fd = new FormData();
-    fd.append('archivo', selectedFile);
-
-    try {
-      const r = await fetch('/api/importar', { method: 'POST', body: fd });
-      const data = await r.json();
-
-      results.style.display = 'block';
-      if (!r.ok) {
-        results.className = 'imp-results error';
-        results.innerHTML = `
-          <div class="imp-res-title err">Error al importar</div>
-          <div class="imp-res-body">${esc(data.error)}</div>
-          ${data.errores?.length ? `<ul class="imp-errors-list">${data.errores.map(e => `<li>Fila ${e.fila}: ${esc(e.motivo)}</li>`).join('')}</ul>` : ''}`;
-        return;
-      }
-
-      const { importados, omitidos, errores } = data;
-      const cls    = omitidos > 0 ? 'partial' : 'success';
-      const tCls   = omitidos > 0 ? 'warn' : 'ok';
-      results.className = `imp-results ${cls}`;
-      results.innerHTML = `
-        <div class="imp-res-title ${tCls}">${importados} estudiante${importados !== 1 ? 's' : ''} importado${importados !== 1 ? 's' : ''} correctamente</div>
-        <div class="imp-res-body">${omitidos > 0 ? `${omitidos} fila${omitidos !== 1 ? 's' : ''} omitida${omitidos !== 1 ? 's' : ''} por falta de datos requeridos.` : 'Todos los registros fueron importados sin problemas.'}</div>
-        ${errores?.length ? `<ul class="imp-errors-list">${errores.map(e => `<li>Fila ${e.fila}: ${esc(e.motivo)}</li>`).join('')}</ul>` : ''}`;
-
-      if (importados > 0) {
-        toast(`${importados} estudiante${importados !== 1 ? 's' : ''} importado${importados !== 1 ? 's' : ''} exitosamente.`, 'success');
-        clearFile();
-        await Promise.all([loadStudents(), loadStats()]);
-      }
-    } catch (err) {
-      results.style.display = 'block';
-      results.className = 'imp-results error';
-      results.innerHTML = `<div class="imp-res-title err">Error de red</div><div class="imp-res-body">${esc(err.message)}</div>`;
-    } finally {
-      importBtn.disabled = !selectedFile;
-      importBtn.classList.remove('btn-loading');
-      importBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 12l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Importar estudiantes`;
-    }
-  });
-
-  // Reset modal state when closed
-  document.addEventListener('modalClosed', e => {
-    if (e.detail === 'modal-importar') { clearFile(); results.style.display = 'none'; }
-  });
-})();
-
-// ─────────────────────────────────────────
 //  Event bindings
 // ─────────────────────────────────────────
 function bindEvents() {
   // Open missing modal
   $('btn-reportar-desaparecido').addEventListener('click', () => openModal('modal-desaparecido'));
-  $('btn-importar-excel').addEventListener('click', () => openModal('modal-importar'));
 
   // Close buttons via data-close
   document.querySelectorAll('[data-close]').forEach(btn =>
     btn.addEventListener('click', () => closeModal(btn.dataset.close))
   );
 
-  // Close on overlay click
-  document.querySelectorAll('.modal-overlay').forEach(overlay =>
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); })
-  );
+  // Close on overlay click + focus trap
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); });
+    overlay.addEventListener('keydown', e => trapFocus(overlay, e));
+  });
 
   // ESC key
   document.addEventListener('keydown', e => {
@@ -771,11 +1031,11 @@ function bindEvents() {
       document.querySelectorAll('.modal-overlay.open').forEach(o => closeModal(o.id));
   });
 
-  // Search filter (debounced)
+  // Search filter — debounce corto porque filtra en el cliente
   let searchTid;
   $('filter-q').addEventListener('input', e => {
     clearTimeout(searchTid);
-    searchTid = setTimeout(() => { state.filters.q = e.target.value; loadStudents(); }, 320);
+    searchTid = setTimeout(() => { state.filters.q = e.target.value; applyFilters(); }, 150);
   });
 
   // Faculty filter
@@ -784,24 +1044,71 @@ function bindEvents() {
     state.filters.carrera  = '';
     updateCareerSelect('filter-carrera', state.filters.facultad);
     renderFacultyBar();
-    loadStudents();
+    applyFilters();
   });
 
   // Career filter
   $('filter-carrera').addEventListener('change', e => {
     state.filters.carrera = e.target.value;
-    loadStudents();
+    applyFilters();
   });
 
-  // Status tabs
-  document.querySelectorAll('.tab-btn').forEach(btn =>
+  // Status tabs (only [data-estado] buttons — excluye tab-contact)
+  document.querySelectorAll('.tab-btn[data-estado]').forEach(btn =>
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-btn[data-estado]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.filters.estado = btn.dataset.estado;
-      loadStudents();
+      applyFilters();
     })
   );
+
+  // Con contacto toggle
+  const btnContact = $('btn-con-contacto');
+  if (btnContact) {
+    btnContact.addEventListener('click', () => {
+      state.filters.con_contacto = !state.filters.con_contacto;
+      btnContact.classList.toggle('active', state.filters.con_contacto);
+      btnContact.setAttribute('aria-pressed', state.filters.con_contacto ? 'true' : 'false');
+      applyFilters();
+    });
+  }
+
+  // Sort
+  const sortSel = $('filter-sort');
+  if (sortSel) {
+    sortSel.addEventListener('change', e => {
+      state.filters.sort = e.target.value;
+      applyFilters();
+    });
+  }
+
+  // Theme toggle
+  const btnTheme = $('btn-theme');
+  if (btnTheme) {
+    btnTheme.addEventListener('click', () => {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const next = isLight ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('ucv-theme', next);
+      btnTheme.setAttribute('aria-label', next === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro');
+    });
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    btnTheme.setAttribute('aria-label', isLight ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro');
+  }
+
+  // Confirm modal OK button
+  const btnConfOk = $('btn-conf-ok');
+  if (btnConfOk) {
+    btnConfOk.addEventListener('click', () => {
+      closeModal('modal-confirmar');
+      if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+    });
+  }
+
+  // Export CSV
+  const btnExport = $('btn-export-csv');
+  if (btnExport) btnExport.addEventListener('click', exportCSV);
 
   // Form: facultad → carrera cascade
   $('ff-facultad').addEventListener('change', e =>
@@ -810,12 +1117,53 @@ function bindEvents() {
 }
 
 // ─────────────────────────────────────────
+//  Validación en cliente
+// ─────────────────────────────────────────
+function validateRequired(form, fieldNames) {
+  let valid = true;
+  fieldNames.forEach(name => {
+    const el = form.querySelector(`[name="${name}"]`);
+    if (!el) return;
+    const empty = !el.value.trim();
+    el.classList.toggle('input-error', empty);
+    if (empty) {
+      valid = false;
+      const clear = () => el.classList.remove('input-error');
+      el.addEventListener('input',  clear, { once: true });
+      el.addEventListener('change', clear, { once: true });
+    }
+  });
+  if (!valid) {
+    const first = form.querySelector('.input-error');
+    if (first) first.focus();
+  }
+  return valid;
+}
+
+// ─────────────────────────────────────────
+//  Normalización de cédula en tiempo real
+// ─────────────────────────────────────────
+document.querySelectorAll('input[name="cedula"]').forEach(input => {
+  input.addEventListener('input', () => {
+    const pos = input.selectionStart;
+    const clean = input.value.replace(/\D/g, '').slice(0, 9);
+    if (input.value !== clean) {
+      input.value = clean;
+      // Restaurar posición del cursor
+      input.setSelectionRange(Math.min(pos, clean.length), Math.min(pos, clean.length));
+    }
+  });
+});
+
+// ─────────────────────────────────────────
 //  Init
 // ─────────────────────────────────────────
 async function init() {
   await loadFacultades();
   await Promise.all([loadStudents(), loadStats()]);
   bindEvents();
+  checkDeepLink();
+  startRealtime();
 }
 
 init().catch(console.error);

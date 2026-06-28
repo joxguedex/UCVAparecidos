@@ -68,6 +68,11 @@ function renderKPIs(snaps) {
 }
 
 function renderChart(snaps) {
+  if (typeof Chart === 'undefined') {
+    document.getElementById('chart').closest('.chart-wrap').innerHTML =
+      '<p style="color:var(--text-muted);text-align:center;padding:60px 24px">Gráfica no disponible — Chart.js no cargó (sin conexión o CDN bloqueado)</p>';
+    return;
+  }
   const labels = snaps.map(s => fmt(s.tomado_en));
   const ctx = document.getElementById('chart').getContext('2d');
 
@@ -164,34 +169,74 @@ function renderTable(snaps) {
 }
 
 async function load() {
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('content').style.display = 'none';
+  const loadingEl = document.getElementById('loading');
+  const contentEl = document.getElementById('content');
+  loadingEl.style.display = 'block';
+  contentEl.style.display = 'none';
 
-  const res  = await fetch('/api/snapshots');
-  const data = await res.json();
+  try {
+    const res = await fetch('/api/snapshots');
+    if (!res.ok) throw new Error(`Error del servidor (HTTP ${res.status})`);
+    const data = await res.json();
 
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('content').style.display = 'block';
+    loadingEl.style.display = 'none';
+    contentEl.style.display = 'block';
 
-  if (data.length) {
-    const last = data[data.length - 1];
-    document.getElementById('last-update').textContent =
-      'Último snapshot: ' + fmt(last.tomado_en);
+    if (data.length) {
+      document.getElementById('last-update').textContent =
+        'Último snapshot: ' + fmt(data[data.length - 1].tomado_en);
+    }
+
+    renderKPIs(data);
+    try { renderChart(data); } catch { /* gráfica falla sin bloquear la tabla */ }
+    renderTable(data);
+  } catch (err) {
+    loadingEl.innerHTML = `
+      <p style="color:#E05A5A;font-size:14px">
+        Error al cargar datos: ${err.message}
+      </p>
+      <button onclick="load()" style="margin-top:12px;padding:8px 16px;background:#142233;
+        color:#BACDD8;border:1px solid rgba(155,181,200,.2);border-radius:8px;cursor:pointer;">
+        Reintentar
+      </button>`;
   }
-
-  renderKPIs(data);
-  renderChart(data);
-  renderTable(data);
 }
 
 document.getElementById('btn-snapshot').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-snapshot');
+  const btn   = document.getElementById('btn-snapshot');
+  const token = document.getElementById('admin-token').value.trim();
+
+  if (!token) {
+    document.getElementById('admin-token').focus();
+    document.getElementById('admin-token').style.borderColor = '#E05A5A';
+    setTimeout(() => { document.getElementById('admin-token').style.borderColor = ''; }, 2000);
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Tomando…';
-  await fetch('/api/snapshots/tomar', { method: 'POST' });
-  await load();
-  btn.disabled = false;
-  btn.textContent = '+ Tomar snapshot ahora';
+
+  try {
+    const res = await fetch('/api/snapshots/tomar', {
+      method: 'POST',
+      headers: { 'x-admin-token': token },
+    });
+
+    if (res.status === 401) {
+      document.getElementById('admin-token').style.borderColor = '#E05A5A';
+      alert('Token incorrecto.');
+      return;
+    }
+
+    if (!res.ok) throw new Error(`Error del servidor (HTTP ${res.status})`);
+
+    await load();
+  } catch (err) {
+    alert('Error al tomar snapshot: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '+ Tomar snapshot ahora';
+  }
 });
 
 document.getElementById('btn-refresh').addEventListener('click', load);

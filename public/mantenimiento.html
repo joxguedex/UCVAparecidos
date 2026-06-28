@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mantenimiento — UCV Aparecidos</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230D1B2A'/><circle cx='16' cy='16' r='9' fill='none' stroke='%23E8A95C' stroke-width='2'/><circle cx='16' cy='12' r='2' fill='%23E8A95C'/><rect x='14' y='15' width='4' height='7' rx='1' fill='%23E8A95C'/></svg>">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0D1B2A;
+      color: #EDE8E0;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .icon {
+      width: 72px; height: 72px;
+      background: rgba(232,169,92,.12);
+      border: 1px solid rgba(232,169,92,.25);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 32px;
+    }
+    .icon svg { width: 36px; height: 36px; color: #E8A95C; }
+
+    .brand {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: #E8A95C;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 18px;
+      color: #EDE8E0;
+    }
+
+    p {
+      font-size: 17px;
+      color: #BACDD8;
+      max-width: 480px;
+      line-height: 1.75;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(232,169,92,.1);
+      border: 1px solid rgba(232,169,92,.22);
+      border-radius: 20px;
+      padding: 8px 18px;
+      font-size: 13.5px;
+      color: #E8A95C;
+      margin-top: 32px;
+      font-weight: 500;
+    }
+
+    .dot {
+      width: 8px; height: 8px;
+      background: #E8A95C;
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .3; }
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 24px;
+      font-size: 12px;
+      color: #3A5278;
+      letter-spacing: .04em;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="icon">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm2.5 12.5h-5v-1.5h1.75v-5H9.5V9.5h3.75v7h1.75v1.5z" fill="currentColor"/>
+    </svg>
+  </div>
+
+  <div class="brand">UCV Aparecidos</div>
+
+  <h1>Sistema en mantenimiento</h1>
+
+  <p>Estamos realizando mejoras en la base de datos para seguir brindando un mejor servicio.</p>
+  <p>El sistema volverá a estar disponible en breve. Gracias por tu paciencia.</p>
+
+  <div class="badge">
+    <span class="dot"></span>
+    Trabajando en mejoras — volvemos pronto
+  </div>
+
+  <div class="footer">Universidad Central de Venezuela · Sistema de Registro de Aparecidos</div>
+
+</body>
+</html>

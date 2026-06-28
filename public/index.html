@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UCV Aparecidos — Sistema de Registro Universitario</title>
+  <meta name="description" content="Centralización de información sobre estudiantes de la UCV afectados por el sismo. Reporta desaparecidos, confirma apariciones y ayuda a reunir familias.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="UCV Aparecidos — Sistema de Registro">
+  <meta property="og:description" content="Centralización de información sobre estudiantes de la UCV afectados por el sismo. Reporta desaparecidos, confirma apariciones y ayuda a reunir familias.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="UCV Aparecidos — Sistema de Registro">
+  <meta name="twitter:description" content="Centralización de información sobre estudiantes de la UCV afectados por el sismo. Reporta desaparecidos, confirma apariciones y ayuda a reunir familias.">
+  <script>
+  (function(){var s=localStorage.getItem('ucv-theme');if(s)document.documentElement.setAttribute('data-theme',s);else if(window.matchMedia('(prefers-color-scheme: light)').matches)document.documentElement.setAttribute('data-theme','light');}());
+  </script>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230D1B2A'/><circle cx='16' cy='16' r='9' fill='none' stroke='%23E8A95C' stroke-width='2'/><circle cx='16' cy='12' r='2' fill='%23E8A95C'/><rect x='14' y='15' width='4' height='7' rx='1' fill='%23E8A95C'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -26,11 +37,11 @@
         </div>
       </div>
       <div class="nav-actions">
-        <button class="btn-secondary" id="btn-importar-excel">
-          <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 16V4M8 12l4 4 4-4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="nav-btn-txt">Importar Excel</span>
+        <button class="btn-theme" id="btn-theme" aria-label="Cambiar a modo claro">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" width="17" height="17"><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" width="17" height="17"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
-        <button class="btn-primary" id="btn-reportar-desaparecido">
+<button class="btn-primary" id="btn-reportar-desaparecido">
           <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
           <span class="nav-btn-txt">Reportar</span>
         </button>
@@ -43,7 +54,8 @@
     <div class="hero-inner">
       <div class="hero-eyebrow">
         <span class="pulse-dot"></span>
-        Información actualizada en tiempo real · Universidad Central de Venezuela
+        Universidad Central de Venezuela
+        <span id="last-sync" class="last-sync"></span>
       </div>
       <h1 class="hero-title">Cada nombre cuenta.<br><em>Cada aparición, celebrada.</em></h1>
       <p class="hero-subtitle">
@@ -96,16 +108,33 @@
         <select class="filter-select" id="filter-carrera" disabled>
           <option value="">Todas las carreras</option>
         </select>
+        <select class="filter-select" id="filter-sort" aria-label="Ordenar resultados">
+          <option value="fecha_desc">Más recientes</option>
+          <option value="fecha_asc">Más antiguos</option>
+          <option value="nombre_az">Nombre A→Z</option>
+          <option value="nombre_za">Nombre Z→A</option>
+        </select>
         <div class="filter-tabs" role="group" aria-label="Filtrar por estado">
           <button class="tab-btn active" data-estado="">Todos</button>
           <button class="tab-btn" data-estado="desaparecido">Desaparecidos</button>
           <button class="tab-btn" data-estado="aparecido">Aparecidos</button>
           <button class="tab-btn" data-estado="fallecido">Fallecidos</button>
         </div>
+        <button class="tab-contact" id="btn-con-contacto" aria-pressed="false" title="Mostrar solo casos con datos de contacto">
+          <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Con contacto
+        </button>
+        <button class="btn-export" id="btn-export-csv" title="Exportar lista filtrada como CSV" aria-label="Exportar a CSV">
+          <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          CSV
+        </button>
       </div>
 
       <!-- Faculty summary chips -->
       <div class="faculty-bar" id="faculty-bar" aria-label="Filtros por facultad"></div>
+
+      <!-- Result count -->
+      <div class="result-count-bar" id="result-count-bar" aria-live="polite"></div>
 
       <!-- Cards grid -->
       <div class="students-grid" id="students-grid" role="list">
@@ -133,61 +162,61 @@
         <div class="fsec">Información del estudiante</div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Nombre completo <span class="req">*</span></label>
-            <input type="text" name="nombre" class="form-input" placeholder="Nombre y apellido" required>
+            <label class="form-label" for="des-nombre">Nombre completo <span class="req">*</span></label>
+            <input type="text" id="des-nombre" name="nombre" class="form-input" placeholder="Nombre y apellido" required>
           </div>
           <div class="form-group">
-            <label class="form-label">Cédula de identidad</label>
-            <input type="text" name="cedula" class="form-input mono" placeholder="V-00.000.000">
+            <label class="form-label" for="des-cedula">Cédula de identidad</label>
+            <input type="text" id="des-cedula" name="cedula" class="form-input mono" placeholder="Ej: 30730601" inputmode="numeric" maxlength="9">
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Facultad <span class="req">*</span></label>
+            <label class="form-label" for="ff-facultad">Facultad <span class="req">*</span></label>
             <select name="facultad" class="form-select" required id="ff-facultad">
               <option value="">Seleccionar facultad</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Carrera <span class="req">*</span></label>
+            <label class="form-label" for="ff-carrera">Carrera <span class="req">*</span></label>
             <select name="carrera" class="form-select" required id="ff-carrera" disabled>
               <option value="">Seleccionar carrera</option>
             </select>
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Semestre / Año</label>
-          <input type="text" name="semestre" class="form-input" placeholder="Ej: 5to semestre, 3er año">
+          <label class="form-label" for="des-semestre">Semestre / Año</label>
+          <input type="text" id="des-semestre" name="semestre" class="form-input" placeholder="Ej: 5to semestre, 3er año">
         </div>
 
         <div class="fsec">Última información conocida</div>
         <div class="form-group">
-          <label class="form-label">Última ubicación conocida</label>
-          <input type="text" name="ultima_ubicacion" class="form-input" placeholder="Ej: Edificio de Ciencias, Ciudad Universitaria">
+          <label class="form-label" for="des-ubicacion">Última ubicación conocida</label>
+          <input type="text" id="des-ubicacion" name="ultima_ubicacion" class="form-input" placeholder="Ej: Edificio de Ciencias, Ciudad Universitaria">
         </div>
         <div class="form-group">
-          <label class="form-label">Descripción adicional</label>
-          <textarea name="descripcion" class="form-textarea" rows="3" placeholder="Qué ropa llevaba, con quién estaba, cualquier detalle que ayude a localizarlo/la…"></textarea>
+          <label class="form-label" for="des-descripcion">Descripción adicional</label>
+          <textarea id="des-descripcion" name="descripcion" class="form-textarea" rows="3" placeholder="Qué ropa llevaba, con quién estaba, cualquier detalle que ayude a localizarlo/la…"></textarea>
         </div>
 
         <div class="fsec">Contacto familiar o conocido</div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Nombre del contacto</label>
-            <input type="text" name="nombre_contacto" class="form-input" placeholder="Nombre completo">
+            <label class="form-label" for="des-contacto-nombre">Nombre del contacto</label>
+            <input type="text" id="des-contacto-nombre" name="nombre_contacto" class="form-input" placeholder="Nombre completo">
           </div>
           <div class="form-group">
-            <label class="form-label">Relación con el estudiante</label>
-            <input type="text" name="relacion_contacto" class="form-input" placeholder="Ej: Madre, Amigo, Compañero">
+            <label class="form-label" for="des-contacto-relacion">Relación con el estudiante</label>
+            <input type="text" id="des-contacto-relacion" name="relacion_contacto" class="form-input" placeholder="Ej: Madre, Amigo, Compañero">
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Teléfono de contacto</label>
-          <input type="tel" name="telefono_contacto" class="form-input mono" placeholder="0412-0000000">
+          <label class="form-label" for="des-contacto-tel">Teléfono de contacto</label>
+          <input type="tel" id="des-contacto-tel" name="telefono_contacto" class="form-input mono" placeholder="0412-0000000">
         </div>
         <div class="form-group">
-          <label class="form-label">¿Quién registra esta información?</label>
-          <input type="text" name="registrado_por" class="form-input" placeholder="Tu nombre (opcional, pero ayuda a verificar)">
+          <label class="form-label" for="des-registrado-por">¿Quién registra esta información?</label>
+          <input type="text" id="des-registrado-por" name="registrado_por" class="form-input" placeholder="Tu nombre (opcional, pero ayuda a verificar)">
         </div>
 
         <div class="form-actions">
@@ -215,8 +244,8 @@
 
         <div class="fsec">¿Cómo te enteraste?</div>
         <div class="form-group">
-          <label class="form-label">Tipo de confirmación <span class="req">*</span></label>
-          <select name="tipo_confirmacion" class="form-select" required>
+          <label class="form-label" for="apar-tipo">Tipo de confirmación <span class="req">*</span></label>
+          <select id="apar-tipo" name="tipo_confirmacion" class="form-select" required>
             <option value="">Seleccionar…</option>
             <option value="contacto_directo">Hablé directamente con él/ella</option>
             <option value="llamada_telefonica">Llamada telefónica</option>
@@ -229,20 +258,20 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Cuéntanos qué ocurrió <span class="req">*</span></label>
-          <textarea name="detalles_confirmacion" class="form-textarea" rows="4"
-            placeholder="Describe cómo sabes que el/la estudiante ya apareció. Cualquier detalle ayuda a la familia…" required></textarea>
+          <label class="form-label" for="apar-detalles">Cuéntanos qué ocurrió</label>
+          <textarea id="apar-detalles" name="detalles_confirmacion" class="form-textarea" rows="4"
+            placeholder="Describe cómo sabes que el/la estudiante ya apareció. Cualquier detalle ayuda a la familia…"></textarea>
         </div>
 
         <div class="fsec">¿Quién reporta esta información?</div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Tu nombre</label>
-            <input type="text" name="reportado_aparicion_por" class="form-input" placeholder="Opcional pero valioso">
+            <label class="form-label" for="apar-reporter">Tu nombre</label>
+            <input type="text" id="apar-reporter" name="reportado_aparicion_por" class="form-input" placeholder="Opcional pero valioso">
           </div>
           <div class="form-group">
-            <label class="form-label">Tu teléfono o correo</label>
-            <input type="text" name="contacto_reportador" class="form-input mono" placeholder="Para verificación">
+            <label class="form-label" for="apar-contacto">Tu teléfono o correo</label>
+            <input type="text" id="apar-contacto" name="contacto_reportador" class="form-input mono" placeholder="Para verificación">
           </div>
         </div>
 
@@ -271,8 +300,8 @@
 
         <div class="fsec">¿Cómo fue confirmado el fallecimiento?</div>
         <div class="form-group">
-          <label class="form-label">Tipo de confirmación <span class="req">*</span></label>
-          <select name="tipo_confirmacion_deceso" class="form-select" required>
+          <label class="form-label" for="fall-tipo">Tipo de confirmación <span class="req">*</span></label>
+          <select id="fall-tipo" name="tipo_confirmacion_deceso" class="form-select" required>
             <option value="">Seleccionar…</option>
             <option value="hospital">Hospital o centro médico</option>
             <option value="familiar">Confirmación familiar directa</option>
@@ -282,20 +311,20 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Detalles de la confirmación <span class="req">*</span></label>
-          <textarea name="detalles_confirmacion" class="form-textarea" rows="3"
-            placeholder="Cuéntanos cómo fue confirmado el fallecimiento…" required></textarea>
+          <label class="form-label" for="fall-detalles">Detalles de la confirmación</label>
+          <textarea id="fall-detalles" name="detalles_confirmacion" class="form-textarea" rows="3"
+            placeholder="Cuéntanos cómo fue confirmado el fallecimiento…"></textarea>
         </div>
 
         <div class="fsec">¿Quién reporta esta información?</div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Tu nombre</label>
-            <input type="text" name="reportado_aparicion_por" class="form-input" placeholder="Opcional pero valioso">
+            <label class="form-label" for="fall-reporter">Tu nombre</label>
+            <input type="text" id="fall-reporter" name="reportado_aparicion_por" class="form-input" placeholder="Opcional pero valioso">
           </div>
           <div class="form-group">
-            <label class="form-label">Tu teléfono o correo</label>
-            <input type="text" name="contacto_reportador" class="form-input mono" placeholder="Para verificación">
+            <label class="form-label" for="fall-contacto">Tu teléfono o correo</label>
+            <input type="text" id="fall-contacto" name="contacto_reportador" class="form-input mono" placeholder="Para verificación">
           </div>
         </div>
 
@@ -323,68 +352,45 @@
   </div>
 
   <!-- ══════════════════════════════════════
-       MODAL: Importar desde Excel
+       MODAL: Posible duplicado de nombre
   ══════════════════════════════════════════ -->
-  <div class="modal-overlay" id="modal-importar" aria-hidden="true" role="dialog" aria-labelledby="m-imp-title">
-    <div class="modal modal-wide">
-      <div class="modal-header">
-        <h2 class="modal-title" id="m-imp-title">Importar estudiantes desde Excel</h2>
-        <button class="modal-close" data-close="modal-importar" aria-label="Cerrar">
+  <div class="modal-overlay" id="modal-duplicado" aria-hidden="true" role="dialog" aria-labelledby="m-dup-title">
+    <div class="modal">
+      <div class="modal-header" style="background:rgba(245,158,11,.08);border-bottom-color:rgba(245,158,11,.22)">
+        <h2 class="modal-title" id="m-dup-title" style="color:#f59e0b">Posible duplicado</h2>
+        <button class="modal-close" data-close="modal-duplicado" aria-label="Cerrar">
           <svg viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
       </div>
-
       <div class="modal-form">
-        <!-- Instrucciones -->
-        <div class="imp-info">
-          <p>Sube tu archivo Excel con la lista de estudiantes. Las columnas que reconocemos son:</p>
-          <div class="imp-cols">
-            <span class="imp-col req-col">nombre *</span>
-            <span class="imp-col req-col">facultad *</span>
-            <span class="imp-col req-col">carrera *</span>
-            <span class="imp-col">cedula</span>
-            <span class="imp-col">semestre</span>
-            <span class="imp-col">estado</span>
-            <span class="imp-col">telefono_contacto</span>
-            <span class="imp-col">nombre_contacto</span>
-            <span class="imp-col">relacion_contacto</span>
-            <span class="imp-col">ultima_ubicacion</span>
-            <span class="imp-col">descripcion</span>
-            <span class="imp-col">tipo_confirmacion</span>
-            <span class="imp-col">detalles_confirmacion</span>
-          </div>
-          <p class="imp-note">Los encabezados pueden tener mayúsculas, espacios o tildes — los reconocemos igual. Si no hay columna <code>estado</code>, se asume <em>desaparecido</em>.</p>
-          <a href="/api/importar/plantilla" class="imp-template-link" download>
-            <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M12 16V4M8 12l4 4 4-4M4 20h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Descargar plantilla de ejemplo
-          </a>
+        <p style="color:var(--text-sec);margin-bottom:1rem;line-height:1.5">
+          Ya existe un estudiante registrado con <strong>el mismo nombre</strong>. ¿Es la misma persona?
+        </p>
+        <div id="dup-list"></div>
+        <div class="form-actions" style="margin-top:1.5rem">
+          <button type="button" class="btn-secondary" data-close="modal-duplicado">Cancelar</button>
+          <button type="button" class="btn-primary" id="btn-dup-force">Registrar de todas formas</button>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- Drop zone -->
-        <div class="imp-dropzone" id="imp-dropzone" tabindex="0" role="button" aria-label="Seleccionar archivo Excel">
-          <input type="file" id="imp-file-input" accept=".xlsx,.xls" style="display:none">
-          <div class="imp-dz-icon" aria-hidden="true">
-            <svg viewBox="0 0 48 48" fill="none"><rect x="6" y="4" width="28" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M28 4v10h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M34 4l10 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M14 22h12M14 28h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          </div>
-          <p class="imp-dz-text">Arrastra tu archivo aquí o <span class="imp-dz-link">haz clic para seleccionar</span></p>
-          <p class="imp-dz-hint">.xlsx o .xls · máximo 10 MB</p>
-          <div class="imp-dz-file" id="imp-dz-file" style="display:none">
-            <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/></svg>
-            <span id="imp-file-name"></span>
-            <button class="imp-remove" id="imp-remove-file" aria-label="Quitar archivo">×</button>
-          </div>
-        </div>
-
-        <!-- Results -->
-        <div class="imp-results" id="imp-results" style="display:none"></div>
-
-        <!-- Actions -->
+  <!-- ══════════════════════════════════════
+       MODAL: Confirmar acción sensible
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-confirmar" aria-hidden="true" role="dialog" aria-labelledby="conf-title" aria-modal="true">
+    <div class="modal" style="max-width:440px">
+      <div class="modal-header">
+        <h2 class="modal-title" id="conf-title">Confirmar</h2>
+        <button class="modal-close" data-close="modal-confirmar" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-form">
+        <p id="conf-message" style="color:var(--text-sec);line-height:1.65;margin-bottom:0"></p>
         <div class="form-actions">
-          <button type="button" class="btn-secondary" data-close="modal-importar">Cancelar</button>
-          <button type="button" class="btn-primary" id="btn-do-import" disabled>
-            <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 12l4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Importar estudiantes
-          </button>
+          <button type="button" class="btn-secondary" data-close="modal-confirmar">Cancelar</button>
+          <button type="button" id="btn-conf-ok" class="btn-primary">Confirmar</button>
         </div>
       </div>
     </div>

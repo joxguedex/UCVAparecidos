@@ -8,7 +8,7 @@ const { supabase } = require('../config/database');
 
 const ESTUDIANTES = [
   {
-    nombre: 'María González', cedula: 'V-24.567.890',
+    nombre: 'María González', cedula: 24567890,
     facultad: 'Ciencias', carrera: 'Computación', semestre: '6to semestre',
     nombre_contacto: 'Carlos González', relacion_contacto: 'Padre',
     telefono_contacto: '0412-1234567',
@@ -17,7 +17,7 @@ const ESTUDIANTES = [
     registrado_por: 'Carlos González', estado: 'desaparecido',
   },
   {
-    nombre: 'Roberto Herrera', cedula: 'V-25.891.234',
+    nombre: 'Roberto Herrera', cedula: 25891234,
     facultad: 'Ingeniería', carrera: 'Civil', semestre: '8vo semestre',
     nombre_contacto: 'Ana Herrera', relacion_contacto: 'Madre',
     telefono_contacto: '0424-9876543',
@@ -26,7 +26,7 @@ const ESTUDIANTES = [
     registrado_por: 'Ana Herrera', estado: 'desaparecido',
   },
   {
-    nombre: 'Valentina Díaz', cedula: 'V-26.234.567',
+    nombre: 'Valentina Díaz', cedula: 26234567,
     facultad: 'Medicina', carrera: 'Medicina', semestre: '4to semestre',
     nombre_contacto: 'Luis Díaz', relacion_contacto: 'Hermano',
     telefono_contacto: '0416-5554321',
@@ -48,7 +48,7 @@ const ESTUDIANTES = [
   },
   {
     nombre: 'Laura Ramírez', cedula: 'V-27.123.456',
-    facultad: 'Derecho', carrera: 'Derecho', semestre: '7mo semestre',
+    facultad: 'Ciencias Jurídicas y Políticas', carrera: 'Derecho', semestre: '7mo semestre',
     nombre_contacto: 'José Ramírez', relacion_contacto: 'Padre',
     telefono_contacto: '0424-3214567',
     ultima_ubicacion: 'Facultad de Derecho, Auditorio Principal',
