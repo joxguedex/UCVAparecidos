@@ -99,6 +99,18 @@ exports.getFoto = async (req, res) => {
   }
 };
 
+exports.update = async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID no válido' });
+  try {
+    const student = await Student.findById(id);
+    if (!student) return res.status(404).json({ error: 'Estudiante no encontrado' });
+    res.json(await Student.update(id, req.body));
+  } catch (err) {
+    internalError(res, err, 'update');
+  }
+};
+
 exports.markFound = async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: 'ID no válido' });

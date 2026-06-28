@@ -419,6 +419,71 @@
   <!-- Toast container -->
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
+  <!-- ══════════════════════════════════════════
+       MODAL: Editar ubicación y estado
+  ══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-editar" aria-hidden="true" role="dialog" aria-labelledby="m-edit-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="m-edit-title">Editar estudiante</h2>
+        <button class="modal-close" data-close="modal-editar" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <form class="modal-form" id="form-editar" novalidate>
+        <input type="hidden" id="edit-student-id">
+
+        <div class="fsec">Estado</div>
+        <div class="form-group">
+          <label class="form-label" for="edit-estado">Estado del estudiante</label>
+          <select id="edit-estado" name="estado" class="form-select">
+            <option value="desaparecido">Desaparecido</option>
+            <option value="aparecido">Aparecido / Con vida</option>
+            <option value="fallecido">Fallecido</option>
+          </select>
+        </div>
+        <div id="edit-conf-wrap" style="display:none">
+          <div class="form-group">
+            <label class="form-label" for="edit-tipo-conf">Cómo se confirmó</label>
+            <select id="edit-tipo-conf" name="tipo_confirmacion" class="form-select">
+              <option value="">Seleccionar…</option>
+              <option value="contacto_directo">Contacto directo</option>
+              <option value="llamada_telefonica">Llamada telefónica</option>
+              <option value="mensaje_texto">Mensaje de texto</option>
+              <option value="video">Video / videollamada</option>
+              <option value="presencia_fisica">Presencia física</option>
+              <option value="tercero_confiable">Tercero confiable</option>
+              <option value="redes_sociales">Redes sociales</option>
+              <option value="hospital">Hospital</option>
+              <option value="familiar">Familiar directo</option>
+              <option value="rescate">Equipo de rescate</option>
+              <option value="documentacion_oficial">Documentación oficial</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-detalles">Detalles adicionales</label>
+            <textarea id="edit-detalles" name="detalles_confirmacion" class="form-input" rows="2" placeholder="Opcional…"></textarea>
+          </div>
+        </div>
+
+        <div class="fsec">Ubicación</div>
+        <div class="form-group">
+          <label class="form-label" for="edit-ubicacion">Última ubicación conocida</label>
+          <div class="maps-input-wrap">
+            <svg class="maps-pin-icon" viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z" fill="currentColor"/></svg>
+            <input type="text" id="edit-ubicacion" name="ultima_ubicacion" class="form-input maps-input" placeholder="Busca la dirección o lugar…" autocomplete="off">
+          </div>
+          <input type="hidden" id="edit-lat" name="latitud">
+          <input type="hidden" id="edit-lng" name="longitud">
+          <div class="maps-preview" id="edit-maps-preview" style="display:none"></div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="btn-submit-edit" style="margin-top:8px">Guardar cambios</button>
+      </form>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

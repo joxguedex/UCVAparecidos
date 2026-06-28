@@ -215,6 +215,44 @@ const Student = {
     return this.findById(data.id);
   },
 
+  async update(id, fields) {
+    const { ultima_ubicacion, latitud, longitud, estado, tipo_confirmacion, detalles_confirmacion } = fields;
+
+    const ids     = await estadoIds();
+    const payload = {};
+
+    if (ultima_ubicacion !== undefined) payload.ultima_ubicacion = ultima_ubicacion || null;
+
+    if (estado && ids[estado]) {
+      payload.estado = ids[estado];
+      if (estado === 'aparecido' || estado === 'fallecido') {
+        payload.fecha_aparecio        = new Date().toISOString();
+        payload.tipo_confirmacion     = tipo_confirmacion     || null;
+        payload.detalles_confirmacion = detalles_confirmacion || null;
+      } else if (estado === 'desaparecido') {
+        payload.fecha_aparecio        = null;
+        payload.tipo_confirmacion     = null;
+        payload.detalles_confirmacion = null;
+      }
+    }
+
+    if (Object.keys(payload).length) {
+      const { error } = await supabase.from('estudiantes').update(payload).eq('id', id);
+      if (error) throw new Error(error.message);
+    }
+
+    const lat = latitud  != null && latitud  !== '' ? parseFloat(latitud)  : null;
+    const lng = longitud != null && longitud !== '' ? parseFloat(longitud) : null;
+    if (lat != null && lng != null) {
+      await supabase.from('ubicacion').delete().eq('estudiante', id);
+      const { error: ubErr } = await supabase.from('ubicacion')
+        .insert({ estudiante: id, latitud: lat, longitud: lng });
+      if (ubErr) console.error('[Student.update] ubicacion:', ubErr.message);
+    }
+
+    return this.findById(id);
+  },
+
   async markFound(id, fields) {
     const {
       tipo_confirmacion,

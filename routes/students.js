@@ -17,6 +17,7 @@ router.get ('/',               ctrl.getAll);
 router.get ('/:id/foto',       ctrl.getFoto);
 router.get ('/:id',            ctrl.getOne);
 router.post('/',               writeLimiter, upload.single('foto'), ctrl.create);
+router.put ('/:id',            writeLimiter, ctrl.update);
 router.put ('/:id/aparecio',   writeLimiter, ctrl.markFound);
 router.put ('/:id/fallecio',   writeLimiter, ctrl.markDeceased);
 

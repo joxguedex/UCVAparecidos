@@ -478,11 +478,10 @@ function clearMapPreview() {
   if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
 }
 
-function initNominatimAutocomplete() {
-  const input = $('des-ubicacion');
+function initNominatimAutocomplete(inputId, latId, lngId, previewId) {
+  const input = $(inputId);
   if (!input) return;
 
-  // Dropdown al body con position:fixed para escapar el overflow:auto del modal
   const dropdown = document.createElement('ul');
   dropdown.className = 'osm-dropdown';
   dropdown.setAttribute('role', 'listbox');
@@ -490,10 +489,9 @@ function initNominatimAutocomplete() {
 
   function positionDropdown() {
     const r = input.getBoundingClientRect();
-    dropdown.style.position = 'fixed';
-    dropdown.style.top      = (r.bottom + 4) + 'px';
-    dropdown.style.left     = r.left + 'px';
-    dropdown.style.width    = r.width + 'px';
+    dropdown.style.top   = (r.bottom + 4) + 'px';
+    dropdown.style.left  = r.left + 'px';
+    dropdown.style.width = r.width + 'px';
   }
 
   document.addEventListener('click', e => {
@@ -501,16 +499,18 @@ function initNominatimAutocomplete() {
       dropdown.style.display = 'none';
   });
 
+  let tid;
   input.addEventListener('input', () => {
-    clearMapPreview();
-    clearTimeout(_nominatimTid);
+    $(latId).value = ''; $(lngId).value = '';
+    const preview = $(previewId);
+    if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+    clearTimeout(tid);
     const q = input.value.trim();
     if (q.length < 3) { dropdown.style.display = 'none'; return; }
 
-    _nominatimTid = setTimeout(async () => {
+    tid = setTimeout(async () => {
       try {
-        const url = `/api/geocode?q=${encodeURIComponent(q)}`;
-        const r = await fetch(url);
+        const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
         const results = await r.json();
         if (!results.length) { dropdown.style.display = 'none'; return; }
 
@@ -532,11 +532,15 @@ function initNominatimAutocomplete() {
             e.preventDefault();
             const lat = parseFloat(item.dataset.lat);
             const lon = parseFloat(item.dataset.lon);
-            input.value        = item.dataset.name;
-            $('des-lat').value = lat;
-            $('des-lng').value = lon;
+            input.value      = item.dataset.name;
+            $(latId).value   = lat;
+            $(lngId).value   = lon;
             dropdown.style.display = 'none';
-            showMapPreview(lat, lon);
+            const preview = $(previewId);
+            if (preview) {
+              preview.innerHTML     = `<iframe class="maps-preview-frame" loading="lazy" src="${osmEmbedUrl(lat, lon)}" allowfullscreen></iframe>`;
+              preview.style.display = 'block';
+            }
           });
         });
       } catch (err) {
@@ -549,7 +553,9 @@ function initNominatimAutocomplete() {
   input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 200));
 }
 
-function loadMapsAPI() { initNominatimAutocomplete(); }
+function loadMapsAPI() {
+  initNominatimAutocomplete('des-ubicacion', 'des-lat', 'des-lng', 'maps-preview');
+}
 
 // ─────────────────────────────────────────
 //  Foto preview en formulario (#3)
@@ -866,6 +872,7 @@ function openDetailModal(id) {
         <button class="btn-found" id="det-btn-found" data-id="${s.id}">Marcar como aparecido</button>
         <button class="btn-deceased" id="det-btn-fall" data-id="${s.id}">Reportar fallecimiento</button>
       ` : ''}
+      <button class="btn-secondary" id="det-btn-edit" data-id="${s.id}">Editar</button>
       <button class="btn-secondary" id="det-btn-share" data-id="${s.id}" title="Compartir enlace a este caso">
         <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Compartir
@@ -887,6 +894,12 @@ function openDetailModal(id) {
     closeModal('modal-detalle');
     confirmAndMark(parseInt(bfall.dataset.id), 'deceased');
   });
+  const bedit = $('det-btn-edit');
+  if (bedit) bedit.addEventListener('click', () => {
+    closeModal('modal-detalle');
+    openEditModal(parseInt(bedit.dataset.id));
+  });
+
   const bshare = $('det-btn-share');
   if (bshare) bshare.addEventListener('click', () => {
     const shareId = parseInt(bshare.dataset.id);
@@ -902,6 +915,82 @@ function openDetailModal(id) {
   });
 
   openModal('modal-detalle');
+}
+
+// ─────────────────────────────────────────
+//  Edit modal
+// ─────────────────────────────────────────
+let _editNominatimInit = false;
+
+function openEditModal(id) {
+  const s = state.allStudents.find(x => x.id === id);
+  if (!s) return;
+
+  $('edit-student-id').value  = id;
+  $('edit-estado').value      = s.estado;
+  $('edit-ubicacion').value   = s.ultima_ubicacion || '';
+  $('edit-lat').value         = s.latitud  ?? '';
+  $('edit-lng').value         = s.longitud ?? '';
+  $('edit-tipo-conf').value   = s.tipo_confirmacion || '';
+  $('edit-detalles').value    = s.detalles_confirmacion || '';
+
+  const needsConf = s.estado === 'aparecido' || s.estado === 'fallecido';
+  $('edit-conf-wrap').style.display = needsConf ? 'block' : 'none';
+
+  const preview = $('edit-maps-preview');
+  if (s.latitud && s.longitud) {
+    preview.innerHTML     = `<iframe class="maps-preview-frame" loading="lazy" src="${osmEmbedUrl(s.latitud, s.longitud)}" allowfullscreen></iframe>`;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none'; preview.innerHTML = '';
+  }
+
+  if (!_editNominatimInit) {
+    initNominatimAutocomplete('edit-ubicacion', 'edit-lat', 'edit-lng', 'edit-maps-preview');
+    _editNominatimInit = true;
+
+    $('edit-estado').addEventListener('change', e => {
+      const v = e.target.value;
+      $('edit-conf-wrap').style.display = (v === 'aparecido' || v === 'fallecido') ? 'block' : 'none';
+    });
+
+    $('form-editar').addEventListener('submit', e => {
+      e.preventDefault();
+      submitEdit();
+    });
+  }
+
+  openModal('modal-editar');
+}
+
+async function submitEdit() {
+  const id  = parseInt($('edit-student-id').value);
+  const btn = $('btn-submit-edit');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  const estado = $('edit-estado').value;
+  const body   = {
+    ultima_ubicacion:     $('edit-ubicacion').value.trim() || null,
+    latitud:              $('edit-lat').value  || null,
+    longitud:             $('edit-lng').value  || null,
+    estado,
+    tipo_confirmacion:    $('edit-tipo-conf').value  || null,
+    detalles_confirmacion: $('edit-detalles').value.trim() || null,
+  };
+
+  try {
+    const updated = await api.put(`/api/estudiantes/${id}`, body);
+    // Actualizar en el estado local
+    const idx = state.allStudents.findIndex(x => x.id === id);
+    if (idx !== -1) state.allStudents[idx] = updated;
+    applyFilters();
+    closeModal('modal-editar');
+    toast('Cambios guardados correctamente', 'success');
+  } catch (err) {
+    toast('Error: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+  }
 }
 
 // ─────────────────────────────────────────
