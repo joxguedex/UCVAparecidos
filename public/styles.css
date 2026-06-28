@@ -1030,3 +1030,75 @@ input, select, textarea { font-family: inherit; color: inherit; }
 .tl-label { font-size: 14px; font-weight: 500; color: var(--text); }
 .tl-date  { font-size: 12.5px; color: var(--text-muted); font-family: var(--ff-mono); margin-top: 2px; }
 .tl-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ─────────────────────────
+   GOOGLE MAPS INPUT & EMBED
+───────────────────────── */
+.maps-input-wrap {
+  position: relative;
+}
+.maps-pin-icon {
+  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+  color: var(--amber); pointer-events: none; flex-shrink: 0;
+}
+.maps-input { padding-left: 38px !important; }
+
+/* Dropdown de Nominatim / OpenStreetMap */
+.osm-dropdown {
+  display: none;
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+  list-style: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--sh);
+  max-height: 240px; overflow-y: auto;
+}
+.osm-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px;
+  color: var(--text-sec); font-size: 13.5px;
+  cursor: pointer;
+  border-top: 1px solid var(--border);
+  transition: background .12s;
+}
+.osm-item:first-child { border-top: none; }
+.osm-item:hover { background: var(--surface-3); color: var(--text); }
+.osm-pin { color: var(--amber); flex-shrink: 0; margin-top: 2px; }
+
+/* Mini preview en el formulario */
+.maps-preview { margin-top: 10px; border-radius: var(--r); overflow: hidden; }
+.maps-preview-frame {
+  width: 100%; height: 180px; border: 0; display: block;
+}
+
+/* Mapa en modal de detalle */
+.det-map-wrap {
+  margin-bottom: 16px;
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.det-map {
+  width: 100%; height: 220px; border: 0; display: block;
+}
+.det-map-placeholder {
+  height: 80px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--surface-2); color: var(--text-muted); font-size: 14px;
+}
+.det-map-link {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  font-size: 13.5px; font-weight: 500;
+  color: var(--amber); text-decoration: none;
+  border-top: 1px solid var(--border);
+  transition: background .15s;
+}
+.det-map-link:hover { background: var(--surface-3); }
+.maps-search-link {
+  font-size: 12px; color: var(--amber); text-decoration: none;
+  margin-left: 8px; opacity: .8;
+}
+.maps-search-link:hover { opacity: 1; }

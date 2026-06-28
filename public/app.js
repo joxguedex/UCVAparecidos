@@ -86,8 +86,8 @@ const FAC_TAG = {
 //  Utilities
 // ─────────────────────────────────────────
 function esc(str) {
-  if (!str) return '';
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function initials(name) {
@@ -327,7 +327,7 @@ function applyFilters() {
   if (estado)       list = list.filter(s => s.estado   === estado);
   if (facultad)     list = list.filter(s => s.facultad === facultad);
   if (carrera)      list = list.filter(s => s.carrera  === carrera);
-  if (con_contacto) list = list.filter(s => s.nombre_contacto || s.telefono_contacto);
+  if (con_contacto) list = list.filter(s => s.nombre_contacto || s.telefono_contacto || s.registrado_por || s.contacto_reportador);
   if (q) {
     const qLow  = q.trim().toLowerCase();
     const isNum = /^\d+$/.test(qLow);
@@ -451,6 +451,91 @@ function checkDeepLink() {
   const id = parseInt(new URLSearchParams(location.search).get('id'));
   if (id && state.allStudents.find(s => s.id === id)) openDetailModal(id);
 }
+
+// ─────────────────────────────────────────
+//  OpenStreetMap / Nominatim Autocomplete (#11)
+// ─────────────────────────────────────────
+let _nominatimTid = null;
+
+function osmEmbedUrl(lat, lon, delta = 0.005) {
+  const bbox = `${lon - delta},${lat - delta},${lon + delta},${lat + delta}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
+}
+
+function showMapPreview(lat, lon) {
+  const preview = $('maps-preview');
+  if (!preview) return;
+  preview.style.display = 'block';
+  preview.innerHTML = `<iframe class="maps-preview-frame" loading="lazy" src="${osmEmbedUrl(lat, lon)}" allowfullscreen></iframe>`;
+}
+
+function clearMapPreview() {
+  $('des-lat').value = '';
+  $('des-lng').value = '';
+  const preview = $('maps-preview');
+  if (preview) { preview.style.display = 'none'; preview.innerHTML = ''; }
+}
+
+function initNominatimAutocomplete() {
+  const input = $('des-ubicacion');
+  if (!input) return;
+
+  // Crear dropdown personalizado
+  const dropdown = document.createElement('ul');
+  dropdown.className = 'osm-dropdown';
+  dropdown.setAttribute('role', 'listbox');
+  input.parentElement.appendChild(dropdown);
+
+  document.addEventListener('click', e => {
+    if (!input.contains(e.target) && !dropdown.contains(e.target))
+      dropdown.style.display = 'none';
+  });
+
+  input.addEventListener('input', () => {
+    clearMapPreview();
+    clearTimeout(_nominatimTid);
+    const q = input.value.trim();
+    if (q.length < 3) { dropdown.style.display = 'none'; return; }
+
+    _nominatimTid = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=es`;
+        const r = await fetch(url, { headers: { 'User-Agent': 'UCVAparecidos/1.0' } });
+        const results = await r.json();
+        if (!results.length) { dropdown.style.display = 'none'; return; }
+
+        dropdown.innerHTML = results.map((res, i) =>
+          `<li class="osm-item" role="option" data-idx="${i}"
+               data-lat="${res.lat}" data-lon="${res.lon}"
+               data-name="${esc(res.display_name)}">
+            <svg class="osm-pin" viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+            </svg>
+            <span>${esc(res.display_name)}</span>
+          </li>`
+        ).join('');
+        dropdown.style.display = 'block';
+
+        dropdown.querySelectorAll('.osm-item').forEach(item => {
+          item.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const lat = parseFloat(item.dataset.lat);
+            const lon = parseFloat(item.dataset.lon);
+            input.value        = item.dataset.name;
+            $('des-lat').value = lat;
+            $('des-lng').value = lon;
+            dropdown.style.display = 'none';
+            showMapPreview(lat, lon);
+          });
+        });
+      } catch { dropdown.style.display = 'none'; }
+    }, 400);
+  });
+
+  input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 200));
+}
+
+function loadMapsAPI() { initNominatimAutocomplete(); }
 
 // ─────────────────────────────────────────
 //  Realtime polling (#1)
@@ -618,10 +703,21 @@ function openDetailModal(id) {
 
     <div class="det-section">
       <div class="det-sec-title">Última información conocida</div>
+      ${(s.latitud && s.longitud) ? `
+      <div class="det-map-wrap">
+        <iframe class="det-map" loading="lazy"
+          src="${osmEmbedUrl(s.latitud, s.longitud)}"
+          allowfullscreen>
+        </iframe>
+        <a class="det-map-link" href="https://www.google.com/maps?q=${s.latitud},${s.longitud}" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 3h6v6M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Abrir en Google Maps
+        </a>
+      </div>` : ''}
       <div class="det-grid">
         <div class="det-field" style="grid-column:1/-1">
           <span class="det-fl">Última ubicación</span>
-          <span class="det-fv">${s.ultima_ubicacion ? esc(s.ultima_ubicacion) : '<span class="empty">No especificada</span>'}</span>
+          <span class="det-fv">${s.ultima_ubicacion ? esc(s.ultima_ubicacion) : '<span class="empty">No especificada</span>'}${(!s.latitud && s.ultima_ubicacion) ? ` <a class="maps-search-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.ultima_ubicacion)}" target="_blank" rel="noopener noreferrer">Buscar en Maps ↗</a>` : ''}</span>
         </div>
         ${s.descripcion ? `
           <div class="det-field" style="grid-column:1/-1">
@@ -1160,7 +1256,7 @@ document.querySelectorAll('input[name="cedula"]').forEach(input => {
 // ─────────────────────────────────────────
 async function init() {
   await loadFacultades();
-  await Promise.all([loadStudents(), loadStats()]);
+  await Promise.all([loadStudents(), loadStats(), loadMapsAPI()]);
   bindEvents();
   checkDeepLink();
   startRealtime();

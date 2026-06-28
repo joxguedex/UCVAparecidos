@@ -192,7 +192,13 @@
         <div class="fsec">Última información conocida</div>
         <div class="form-group">
           <label class="form-label" for="des-ubicacion">Última ubicación conocida</label>
-          <input type="text" id="des-ubicacion" name="ultima_ubicacion" class="form-input" placeholder="Ej: Edificio de Ciencias, Ciudad Universitaria">
+          <div class="maps-input-wrap">
+            <svg class="maps-pin-icon" viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z" fill="currentColor"/></svg>
+            <input type="text" id="des-ubicacion" name="ultima_ubicacion" class="form-input maps-input" placeholder="Busca la dirección o lugar en Google Maps…" autocomplete="off">
+          </div>
+          <input type="hidden" id="des-lat"  name="latitud">
+          <input type="hidden" id="des-lng"  name="longitud">
+          <div class="maps-preview" id="maps-preview" style="display:none"></div>
         </div>
         <div class="form-group">
           <label class="form-label" for="des-descripcion">Descripción adicional</label>

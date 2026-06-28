@@ -7,6 +7,7 @@ const SELECT_FULL = [
   'fecha_registro', 'registrado_por', 'fecha_aparecio',
   'tipo_confirmacion', 'detalles_confirmacion',
   'reportado_aparicion_por', 'contacto_reportador', 'tipo',
+  'latitud', 'longitud',
   'estado(nombre)',
   'carrera(nombre, facultad(nombre))',
   'contacto(nombre, telefonos, relacion)',
@@ -48,6 +49,8 @@ function normalize(raw) {
     reportado_aparicion_por: raw.reportado_aparicion_por,
     contacto_reportador:     raw.contacto_reportador,
     tipo:                    raw.tipo ?? 'Pregrado',
+    latitud:                 raw.latitud  != null ? parseFloat(raw.latitud)  : null,
+    longitud:                raw.longitud != null ? parseFloat(raw.longitud) : null,
     // FKs resueltos como texto:
     estado:                  raw.estado?.nombre    ?? 'desaparecido',
     carrera:                 raw.carrera?.nombre   ?? '',
@@ -132,6 +135,9 @@ const Student = {
     const estadoId = ids['desaparecido'];
     if (!estadoId) throw new Error('Estado "desaparecido" no encontrado en la BD');
 
+    const latitud  = fields.latitud  != null && fields.latitud  !== '' ? parseFloat(fields.latitud)  : null;
+    const longitud = fields.longitud != null && fields.longitud !== '' ? parseFloat(fields.longitud) : null;
+
     const { data, error } = await supabase
       .from('estudiantes')
       .insert({
@@ -143,6 +149,8 @@ const Student = {
         ultima_ubicacion: ultima_ubicacion || null,
         descripcion:      descripcion      || null,
         registrado_por:   registrado_por   || null,
+        latitud,
+        longitud,
       })
       .select('id')
       .single();
