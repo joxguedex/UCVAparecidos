@@ -1,5 +1,6 @@
 'use strict';
-const Student = require('../models/Student');
+const Student             = require('../models/Student');
+const { supabase }        = require('../config/database');
 
 const VALID_CONF = new Set([
   'contacto_directo', 'llamada_telefonica', 'mensaje_texto',
@@ -78,9 +79,23 @@ exports.create = async (req, res) => {
       }
     }
 
-    res.status(201).json(await Student.create({ ...req.body, cedula }));
+    res.status(201).json(await Student.create({ ...req.body, cedula, _file: req.file || null }));
   } catch (err) {
     internalError(res, err, 'create');
+  }
+};
+
+exports.getFoto = async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).end();
+  try {
+    const { data, error } = await supabase.storage
+      .from('estudiantes')
+      .createSignedUrl(`fotos/${id}/avatar.webp`, 3600);
+    if (error || !data?.signedUrl) return res.status(404).end();
+    res.redirect(302, data.signedUrl);
+  } catch {
+    res.status(500).end();
   }
 };
 

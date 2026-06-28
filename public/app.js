@@ -218,7 +218,9 @@ function renderCard(s) {
 
     <div class="card-body">
       <div class="card-head">
-        <div class="card-avatar ${avatarClass}" aria-hidden="true">${av}</div>
+        ${s.foto_signed_url
+          ? `<img src="${s.foto_signed_url}" class="card-photo ${avatarClass}" alt="Foto de ${esc(s.nombre)}" loading="lazy" onerror="this.outerHTML='<div class=\\'card-avatar ${avatarClass}\\'>${av}</div>'">`
+          : `<div class="card-avatar ${avatarClass}" aria-hidden="true">${av}</div>`}
         <div class="card-info">
           <h3 class="card-name">${esc(s.nombre)}</h3>
           <div class="card-tags">
@@ -538,6 +540,37 @@ function initNominatimAutocomplete() {
 function loadMapsAPI() { initNominatimAutocomplete(); }
 
 // ─────────────────────────────────────────
+//  Foto preview en formulario (#3)
+// ─────────────────────────────────────────
+function initFotoPreview() {
+  const input = $('des-foto');
+  if (!input) return;
+
+  input.addEventListener('change', () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 100 * 1024) {
+      toast('La foto debe pesar menos de 100 KB', 'error');
+      input.value = '';
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    $('foto-preview-img').src = url;
+    $('foto-preview-name').textContent = file.name;
+    $('foto-preview-wrap').style.display = 'flex';
+    $('foto-label').style.display = 'none';
+  });
+
+  const removeBtn = $('foto-remove');
+  if (removeBtn) removeBtn.addEventListener('click', () => {
+    input.value = '';
+    if ($('foto-preview-img').src) URL.revokeObjectURL($('foto-preview-img').src);
+    $('foto-preview-wrap').style.display = 'none';
+    $('foto-label').style.display = 'flex';
+  });
+}
+
+// ─────────────────────────────────────────
 //  Realtime polling (#1)
 // ─────────────────────────────────────────
 function updateSyncLabel() {
@@ -679,6 +712,10 @@ function openDetailModal(id) {
   $('m-det-title').textContent = s.nombre;
 
   $('modal-det-content').innerHTML = `
+    ${s.foto_signed_url ? `
+    <div class="det-foto-wrap">
+      <img src="${s.foto_signed_url}" class="det-foto" alt="Foto de ${esc(s.nombre)}" loading="lazy">
+    </div>` : ''}
     <div class="det-section">
       <div class="det-sec-title">Información académica</div>
       <div class="det-grid">
@@ -1013,14 +1050,24 @@ async function submitDesaparecido(form, forzar = false) {
   const btn = $('btn-submit-des');
   btn.disabled = true; btn.textContent = 'Registrando…';
 
-  const data = Object.fromEntries(new FormData(form));
-  if (forzar) data.forzar = 'true';
+  const fd = new FormData(form);
+  if (forzar) fd.set('forzar', 'true');
 
   try {
-    await api.post('/api/estudiantes', data);
+    const r = await fetch('/api/estudiantes', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) {
+      const err = new Error(data.error || `HTTP ${r.status}`);
+      if (data.tipo)      err.tipo      = data.tipo;
+      if (data.existente) err.existente = data.existente;
+      if (data.existentes) err.existentes = data.existentes;
+      throw err;
+    }
     closeModal('modal-desaparecido');
     form.reset();
     $('ff-carrera').disabled = true;
+    $('foto-preview-wrap').style.display = 'none';
+    $('foto-label').style.display = 'flex';
     toast('Estudiante registrado. La comunidad UCV está buscando.', 'info');
     await Promise.all([loadStudents(), loadStats()]);
   } catch (err) {
@@ -1210,6 +1257,9 @@ function bindEvents() {
   $('ff-facultad').addEventListener('change', e =>
     updateCareerSelect('ff-carrera', e.target.value)
   );
+
+  // Foto preview
+  initFotoPreview();
 }
 
 // ─────────────────────────────────────────

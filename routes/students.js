@@ -1,23 +1,23 @@
 'use strict';
-/**
- * routes/students.js
- * Rutas REST para el recurso "estudiantes".
- *
- * GET    /api/estudiantes             → listar con filtros opcionales
- * GET    /api/estudiantes/:id         → detalle de uno
- * POST   /api/estudiantes             → registrar desaparecido
- * PUT    /api/estudiantes/:id/aparecio → confirmar aparición
- */
-const { Router } = require('express');
+const { Router }      = require('express');
+const multer          = require('multer');
 const ctrl            = require('../controllers/studentController');
 const { writeLimiter } = require('../middleware/limiters');
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 100 * 1024 },
+  fileFilter: (_req, file, cb) =>
+    cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)),
+});
+
 const router = Router();
 
-router.get  ('/',               ctrl.getAll);
-router.get  ('/:id',            ctrl.getOne);
-router.post ('/',               writeLimiter, ctrl.create);
-router.put  ('/:id/aparecio',   writeLimiter, ctrl.markFound);
-router.put  ('/:id/fallecio',   writeLimiter, ctrl.markDeceased);
+router.get ('/',               ctrl.getAll);
+router.get ('/:id/foto',       ctrl.getFoto);
+router.get ('/:id',            ctrl.getOne);
+router.post('/',               writeLimiter, upload.single('foto'), ctrl.create);
+router.put ('/:id/aparecio',   writeLimiter, ctrl.markFound);
+router.put ('/:id/fallecio',   writeLimiter, ctrl.markDeceased);
 
 module.exports = router;

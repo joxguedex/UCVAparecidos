@@ -187,6 +187,22 @@
           <input type="text" id="des-semestre" name="semestre" class="form-input" placeholder="Ej: 5to semestre, 3er año">
         </div>
 
+        <div class="fsec">Foto del estudiante</div>
+        <div class="form-group">
+          <input type="file" id="des-foto" name="foto" accept="image/jpeg,image/png,image/webp" class="foto-input">
+          <label for="des-foto" class="foto-label" id="foto-label">
+            <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/></svg>
+            Subir foto (opcional · máx. 100 KB)
+          </label>
+          <div class="foto-preview-wrap" id="foto-preview-wrap" style="display:none">
+            <img id="foto-preview-img" class="foto-preview-img" alt="Vista previa">
+            <div class="foto-preview-info">
+              <span id="foto-preview-name" class="foto-preview-name"></span>
+              <button type="button" class="foto-remove" id="foto-remove">Quitar foto</button>
+            </div>
+          </div>
+        </div>
+
         <div class="fsec">Última información conocida</div>
         <div class="form-group">
           <label class="form-label" for="des-ubicacion">Última ubicación conocida</label>
