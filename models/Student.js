@@ -7,7 +7,6 @@ const SELECT_FULL = [
   'fecha_registro', 'registrado_por', 'fecha_aparecio',
   'tipo_confirmacion', 'detalles_confirmacion',
   'reportado_aparicion_por', 'contacto_reportador', 'tipo',
-  'foto_url',
   'estado(nombre)',
   'carrera(nombre, facultad(nombre))',
   'contacto(nombre, telefonos, relacion)',
@@ -52,7 +51,6 @@ function normalize(raw) {
     tipo:                    raw.tipo ?? 'Pregrado',
     latitud:                 raw.ubicacion?.[0]?.latitud  != null ? parseFloat(raw.ubicacion[0].latitud)  : null,
     longitud:                raw.ubicacion?.[0]?.longitud != null ? parseFloat(raw.ubicacion[0].longitud) : null,
-    foto_url:                raw.foto_url ?? null,
     // FKs resueltos como texto:
     estado:                  raw.estado?.nombre    ?? 'desaparecido',
     carrera:                 raw.carrera?.nombre   ?? '',
@@ -78,30 +76,24 @@ function normalizeBrief(raw) {
 // ── Supabase Storage helpers ──────────────────────────────────────
 
 async function withSignedUrls(students) {
-  const withFoto = students.filter(s => s.foto_url);
-  if (!withFoto.length) return students.map(s => ({ ...s, foto_signed_url: null }));
-
-  const { data: urls } = await supabase.storage
-    .from('estudiantes')
-    .createSignedUrls(withFoto.map(s => s.foto_url), 3600);
-
+  if (!students.length) return students;
+  const paths = students.map(s => `fotos/${s.id}/avatar.webp`);
+  const { data: urls } = await supabase.storage.from('estudiantes').createSignedUrls(paths, 3600);
   const urlMap = {};
   if (urls) for (const item of urls) {
     if (item.signedUrl) urlMap[item.path] = item.signedUrl;
   }
-
   return students.map(s => ({
     ...s,
-    foto_signed_url: s.foto_url ? (urlMap[s.foto_url] ?? null) : null,
+    foto_signed_url: urlMap[`fotos/${s.id}/avatar.webp`] ?? null,
   }));
 }
 
 async function addSignedUrl(student) {
   if (!student) return null;
-  if (!student.foto_url) return { ...student, foto_signed_url: null };
   const { data } = await supabase.storage
     .from('estudiantes')
-    .createSignedUrl(student.foto_url, 3600);
+    .createSignedUrl(`fotos/${student.id}/avatar.webp`, 3600);
   return { ...student, foto_signed_url: data?.signedUrl ?? null };
 }
 
@@ -149,19 +141,10 @@ const Student = {
   },
 
   async uploadFoto(id, buffer, mimetype) {
-    const path = `fotos/${id}/avatar.webp`;
-    const { error: upErr } = await supabase.storage
+    const { error } = await supabase.storage
       .from('estudiantes')
-      .upload(path, buffer, { contentType: mimetype, upsert: true });
-
-    if (upErr) { console.error('[Student.uploadFoto]', upErr.message); return; }
-
-    const { error: updErr } = await supabase
-      .from('estudiantes')
-      .update({ foto_url: path })
-      .eq('id', id);
-
-    if (updErr) console.error('[Student.uploadFoto update]', updErr.message);
+      .upload(`fotos/${id}/avatar.webp`, buffer, { contentType: mimetype, upsert: true });
+    if (error) console.error('[Student.uploadFoto]', error.message);
   },
 
   async create(fields) {
