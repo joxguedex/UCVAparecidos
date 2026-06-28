@@ -1,0 +1,1 @@
+(function(){var s=localStorage.getItem('ucv-theme');if(s)document.documentElement.setAttribute('data-theme',s);else if(window.matchMedia('(prefers-color-scheme: light)').matches)document.documentElement.setAttribute('data-theme','light');}());
