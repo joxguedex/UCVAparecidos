@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seguimiento — UCV Aparecidos</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:        #0D1B2A;
+      --surface:   #142233;
+      --border:    rgba(155,181,200,0.12);
+      --text:      #E8F0F7;
+      --text-sec:  #BACDD8;
+      --text-muted:#7A98B4;
+      --amber:     #E8A838;
+      --green:     #4CAF82;
+      --red:       #E05A5A;
+      --slate:     #9BB5C8;
+      --radius:    14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .header-title { font-size: 17px; font-weight: 700; color: var(--text); }
+    .header-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; letter-spacing: .04em; text-transform: uppercase; }
+    .badge-privado {
+      background: rgba(232,168,56,.15);
+      color: var(--amber);
+      border: 1px solid rgba(232,168,56,.3);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* ── KPI cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+    }
+    .kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+    .kpi-val   { font-size: 36px; font-weight: 800; line-height: 1; }
+    .kpi-delta { font-size: 12px; margin-top: 6px; color: var(--text-muted); }
+    .kpi-delta .pos { color: var(--green); }
+    .kpi-delta .neg { color: var(--red); }
+    .color-red   { color: var(--red); }
+    .color-green { color: var(--green); }
+    .color-slate { color: var(--slate); }
+    .color-amber { color: var(--amber); }
+
+    /* ── Chart ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 26px;
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-sec);
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .chart-wrap { position: relative; height: 300px; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 11px 14px; border-bottom: 1px solid rgba(155,181,200,.06); color: var(--text-sec); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(155,181,200,.04); }
+    .delta-pos { color: var(--green); font-weight: 600; }
+    .delta-neg { color: var(--red);   font-weight: 600; }
+    .delta-neu { color: var(--text-muted); }
+
+    /* ── Actions ── */
+    .actions { display: flex; gap: 12px; margin-bottom: 28px; align-items: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 10px;
+      font-size: 13.5px; font-weight: 600; cursor: pointer;
+      border: none; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary   { background: var(--amber); color: #1a1000; }
+    .btn-secondary { background: var(--surface); color: var(--text-sec); border: 1px solid var(--border); }
+    .last-update { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 60px; color: var(--text-muted); font-size: 14px; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--amber); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 600px) {
+      .header { padding: 14px 16px; }
+      .container { padding: 20px 14px 60px; }
+      .kpi-val { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="header-title">UCV Aparecidos — Seguimiento interno</div>
+    <div class="header-sub">Evolución cada 12 horas · Universidad Central de Venezuela</div>
+  </div>
+  <span class="badge-privado">Acceso restringido</span>
+</header>
+
+<div class="container">
+
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    Cargando datos de seguimiento…
+  </div>
+
+  <div id="content" style="display:none">
+
+    <div class="kpi-grid" id="kpi-grid"></div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-snapshot">+ Tomar snapshot ahora</button>
+      <button class="btn btn-secondary" id="btn-refresh">↻ Actualizar</button>
+      <span class="last-update" id="last-update"></span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Evolución en el tiempo</div>
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Historial de snapshots</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fecha y hora</th>
+              <th>Desaparecidos</th>
+              <th>Δ</th>
+              <th>Aparecidos</th>
+              <th>Δ</th>
+              <th>Fallecidos</th>
+              <th>Δ</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+</div><!-- /container -->
+
+<script src="/seguimiento.js"></script>
+</body>
+</html>

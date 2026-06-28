@@ -17,6 +17,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── API routes ──────────────────────────────
 app.use('/api', routes);
 
+// ── Página de seguimiento interno (URL no enlazada desde el sitio público) ──
+app.get('/seguimiento-interno', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'seguimiento.html'));
+});
+
 // ── Fallback: cualquier ruta desconocida sirve el SPA ──
 app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
