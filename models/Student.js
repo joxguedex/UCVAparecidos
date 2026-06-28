@@ -7,10 +7,11 @@ const SELECT_FULL = [
   'fecha_registro', 'registrado_por', 'fecha_aparecio',
   'tipo_confirmacion', 'detalles_confirmacion',
   'reportado_aparicion_por', 'contacto_reportador', 'tipo',
-  'latitud', 'longitud', 'foto_url',
+  'foto_url',
   'estado(nombre)',
   'carrera(nombre, facultad(nombre))',
   'contacto(nombre, telefonos, relacion)',
+  'ubicacion(latitud, longitud)',
 ].join(', ');
 
 // Select liviano para chequeo de duplicados
@@ -49,8 +50,8 @@ function normalize(raw) {
     reportado_aparicion_por: raw.reportado_aparicion_por,
     contacto_reportador:     raw.contacto_reportador,
     tipo:                    raw.tipo ?? 'Pregrado',
-    latitud:                 raw.latitud  != null ? parseFloat(raw.latitud)  : null,
-    longitud:                raw.longitud != null ? parseFloat(raw.longitud) : null,
+    latitud:                 raw.ubicacion?.[0]?.latitud  != null ? parseFloat(raw.ubicacion[0].latitud)  : null,
+    longitud:                raw.ubicacion?.[0]?.longitud != null ? parseFloat(raw.ubicacion[0].longitud) : null,
     foto_url:                raw.foto_url ?? null,
     // FKs resueltos como texto:
     estado:                  raw.estado?.nombre    ?? 'desaparecido',
@@ -198,13 +199,19 @@ const Student = {
         ultima_ubicacion: ultima_ubicacion || null,
         descripcion:      descripcion      || null,
         registrado_por:   registrado_por   || null,
-        latitud,
-        longitud,
       })
       .select('id')
       .single();
 
     if (error) throw new Error(error.message);
+
+    // Guardar coordenadas en tabla ubicacion
+    if (latitud != null && longitud != null) {
+      const { error: ubErr } = await supabase
+        .from('ubicacion')
+        .insert({ estudiante: data.id, latitud, longitud });
+      if (ubErr) console.error('[Student.create] ubicacion insert error:', ubErr.message);
+    }
 
     // Subir foto si se proporcionó
     if (fields._file) {
