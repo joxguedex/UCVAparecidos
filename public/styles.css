@@ -1102,6 +1102,13 @@ input, select, textarea { font-family: inherit; color: inherit; }
   margin-left: 8px; opacity: .8;
 }
 .maps-search-link:hover { opacity: 1; }
+.card-maps-link {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--amber); text-decoration: none;
+  margin-left: 6px; white-space: nowrap;
+  opacity: .85;
+}
+.card-maps-link:hover { opacity: 1; text-decoration: underline; }
 
 /* ── Photo upload (form) ── */
 .foto-input {

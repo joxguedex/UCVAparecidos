@@ -240,7 +240,7 @@ function renderCard(s) {
         ${s.ultima_ubicacion ? `
           <div class="d-row">
             <span class="d-label">Última vez</span>
-            <span class="d-val">${esc(s.ultima_ubicacion)}</span>
+            <span class="d-val">${esc(s.ultima_ubicacion)}${(s.latitud && s.longitud) ? ` <a class="card-maps-link" href="https://www.google.com/maps?q=${s.latitud},${s.longitud}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">📍 Maps</a>` : ''}</span>
           </div>` : ''}
         <div class="d-row">
           <span class="d-label">Reportado</span>
