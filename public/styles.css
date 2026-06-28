@@ -723,9 +723,8 @@ input, select, textarea { font-family: inherit; color: inherit; }
   .brand-ucv { font-size: 17px; }
   .brand-sub { display: none; }
   .nav-actions { gap: 6px; }
-  /* ocultar etiquetas de texto en ambos botones del nav en mobile */
-  .btn-secondary .nav-btn-txt,
-  .btn-primary .nav-btn-txt { display: none; }
+  /* ocultar etiquetas de texto solo en botones secundarios del nav en mobile */
+  .btn-secondary .nav-btn-txt { display: none; }
   .btn-secondary { padding: 8px 10px; min-width: 0; }
   .btn-primary   { padding: 9px 11px; font-size: 13.5px; }
 
