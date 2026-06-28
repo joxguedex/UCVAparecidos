@@ -509,7 +509,7 @@ function initNominatimAutocomplete() {
 
     _nominatimTid = setTimeout(async () => {
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=es`;
+        const url = `/api/geocode?q=${encodeURIComponent(q)}`;
         const r = await fetch(url);
         const results = await r.json();
         if (!results.length) { dropdown.style.display = 'none'; return; }
