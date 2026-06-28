@@ -482,11 +482,19 @@ function initNominatimAutocomplete() {
   const input = $('des-ubicacion');
   if (!input) return;
 
-  // Crear dropdown personalizado
+  // Dropdown al body con position:fixed para escapar el overflow:auto del modal
   const dropdown = document.createElement('ul');
   dropdown.className = 'osm-dropdown';
   dropdown.setAttribute('role', 'listbox');
-  input.parentElement.appendChild(dropdown);
+  document.body.appendChild(dropdown);
+
+  function positionDropdown() {
+    const r = input.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.top      = (r.bottom + 4) + 'px';
+    dropdown.style.left     = r.left + 'px';
+    dropdown.style.width    = r.width + 'px';
+  }
 
   document.addEventListener('click', e => {
     if (!input.contains(e.target) && !dropdown.contains(e.target))
@@ -502,7 +510,7 @@ function initNominatimAutocomplete() {
     _nominatimTid = setTimeout(async () => {
       try {
         const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=es`;
-        const r = await fetch(url, { headers: { 'User-Agent': 'UCVAparecidos/1.0' } });
+        const r = await fetch(url);
         const results = await r.json();
         if (!results.length) { dropdown.style.display = 'none'; return; }
 
@@ -516,6 +524,7 @@ function initNominatimAutocomplete() {
             <span>${esc(res.display_name)}</span>
           </li>`
         ).join('');
+        positionDropdown();
         dropdown.style.display = 'block';
 
         dropdown.querySelectorAll('.osm-item').forEach(item => {
@@ -530,7 +539,10 @@ function initNominatimAutocomplete() {
             showMapPreview(lat, lon);
           });
         });
-      } catch { dropdown.style.display = 'none'; }
+      } catch (err) {
+        console.error('[Nominatim]', err);
+        dropdown.style.display = 'none';
+      }
     }, 400);
   });
 

@@ -1046,7 +1046,7 @@ input, select, textarea { font-family: inherit; color: inherit; }
 /* Dropdown de Nominatim / OpenStreetMap */
 .osm-dropdown {
   display: none;
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+  position: fixed; z-index: 9999;
   list-style: none;
   background: var(--surface-2);
   border: 1px solid var(--border);
