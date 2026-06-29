@@ -241,6 +241,43 @@ document.getElementById('btn-snapshot').addEventListener('click', async () => {
 
 document.getElementById('btn-refresh').addEventListener('click', () => { load(); loadFacultades(); });
 
+document.getElementById('btn-compartir').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-compartir');
+  if (typeof html2canvas === 'undefined') { alert('html2canvas no disponible.'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Generando…';
+
+  try {
+    const card = document.getElementById('card-facultades');
+    const canvas = await html2canvas(card, {
+      scale: 2.5,
+      backgroundColor: '#142233',
+      useCORS: true,
+      logging: false,
+    });
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const file = new File([blob], 'ucv-aparecidos-facultades.png', { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: 'UCV Aparecidos — Resumen por Facultad', files: [file] });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ucv-aparecidos-facultades.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') alert('No se pudo generar la imagen: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '&#128248; Compartir';
+  }
+});
+
 async function loadFacultades() {
   const loadEl = document.getElementById('facultades-loading');
   const wrapEl = document.getElementById('facultades-wrap');
@@ -258,25 +295,26 @@ async function loadFacultades() {
     tbody.innerHTML = porFacultad.map(f => `
       <tr>
         <td style="font-weight:600;color:var(--text)">${f.facultad}</td>
-        <td class="color-red">${f.desaparecidos}</td>
-        <td class="color-green">${f.aparecidos}</td>
-        <td class="color-slate">${f.fallecidos}</td>
-        <td style="color:var(--text-muted)">${f.total}</td>
+        <td class="color-red" data-label="Desaparecidos">${f.desaparecidos}</td>
+        <td class="color-green" data-label="Encontrados">${f.aparecidos}</td>
+        <td class="color-slate" data-label="Fallecidos">${f.fallecidos}</td>
+        <td style="color:var(--text-muted)" data-label="Total">${f.total}</td>
       </tr>
     `).join('');
 
     tfoot.innerHTML = `
       <tr style="border-top:1px solid rgba(155,181,200,.2)">
         <td style="font-weight:700;color:var(--amber);padding-top:14px">TOTAL</td>
-        <td style="font-weight:700;color:var(--red);padding-top:14px">${desaparecidos}</td>
-        <td style="font-weight:700;color:var(--green);padding-top:14px">${aparecidos}</td>
-        <td style="font-weight:700;color:var(--slate);padding-top:14px">${fallecidos}</td>
-        <td style="font-weight:700;color:var(--amber);padding-top:14px">${total}</td>
+        <td data-label="Desaparecidos" style="font-weight:700;color:var(--red);padding-top:14px">${desaparecidos}</td>
+        <td data-label="Encontrados" style="font-weight:700;color:var(--green);padding-top:14px">${aparecidos}</td>
+        <td data-label="Fallecidos" style="font-weight:700;color:var(--slate);padding-top:14px">${fallecidos}</td>
+        <td data-label="Total" style="font-weight:700;color:var(--amber);padding-top:14px">${total}</td>
       </tr>
     `;
 
     loadEl.style.display = 'none';
     wrapEl.style.display = 'block';
+    document.getElementById('btn-compartir').style.display = 'inline-flex';
   } catch (err) {
     loadEl.innerHTML = `<span style="color:#E05A5A">Error al cargar facultades: ${err.message}</span>`;
   }

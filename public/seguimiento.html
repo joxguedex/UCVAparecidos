@@ -7,6 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230D1B2A'/><circle cx='16' cy='16' r='9' fill='none' stroke='%23E8A95C' stroke-width='2'/><circle cx='16' cy='12' r='2' fill='%23E8A95C'/><rect x='14' y='15' width='4' height='7' rx='1' fill='%23E8A95C'/></svg>">
   <meta name="robots" content="noindex, nofollow" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     :root {
       --bg:        #0D1B2A;
@@ -136,6 +137,82 @@
       .container { padding: 20px 14px 60px; }
       .kpi-val { font-size: 28px; }
     }
+
+    /* ── Tabla facultades: layout de tarjetas en móvil ── */
+    @media (max-width: 640px) {
+      #tbl-facultades thead { display: none; }
+
+      #tbl-facultades tbody tr {
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+
+      #tbl-facultades tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 14px;
+        border-bottom: 1px solid rgba(155,181,200,.07) !important;
+        font-size: 13px;
+      }
+
+      #tbl-facultades tbody td:first-child {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        background: rgba(155,181,200,.06);
+        border-bottom: 1px solid var(--border) !important;
+        padding: 11px 14px;
+      }
+
+      #tbl-facultades tbody td:last-child { border-bottom: none !important; }
+
+      #tbl-facultades tbody td:not(:first-child)::before {
+        content: attr(data-label);
+        font-size: 11px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+      }
+
+      #tbl-facultades tfoot td:first-child { display: none; }
+
+      #tbl-facultades tfoot tr {
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 14px 10px;
+        background: rgba(232,168,56,.06);
+        border-radius: 10px;
+        border: 1px solid rgba(232,168,56,.2) !important;
+      }
+
+      #tbl-facultades tfoot td {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px !important;
+        border-bottom: none !important;
+        font-size: 22px;
+        font-weight: 800;
+        min-width: 64px;
+        text-align: center;
+      }
+
+      #tbl-facultades tfoot td::before {
+        content: attr(data-label);
+        font-size: 10px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        font-weight: 400;
+      }
+    }
   </style>
 </head>
 <body>
@@ -199,8 +276,14 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">Resumen por facultad — estado actual</div>
+    <div class="card" id="card-facultades">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px">
+        <div class="card-title" style="margin-bottom:0">Resumen por facultad — estado actual</div>
+        <button class="btn btn-secondary" id="btn-compartir"
+          style="font-size:12px;padding:7px 13px;display:none;white-space:nowrap;flex-shrink:0">
+          &#128248; Compartir
+        </button>
+      </div>
       <div id="facultades-loading" style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">Cargando…</div>
       <div class="table-wrap" id="facultades-wrap" style="display:none">
         <table id="tbl-facultades">
