@@ -199,6 +199,26 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">Resumen por facultad — estado actual</div>
+      <div id="facultades-loading" style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px">Cargando…</div>
+      <div class="table-wrap" id="facultades-wrap" style="display:none">
+        <table id="tbl-facultades">
+          <thead>
+            <tr>
+              <th>Facultad</th>
+              <th style="color:var(--red)">Desaparecidos</th>
+              <th style="color:var(--green)">Encontrados</th>
+              <th style="color:var(--slate)">Fallecidos</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-facultades-body"></tbody>
+          <tfoot id="tbl-facultades-foot"></tfoot>
+        </table>
+      </div>
+    </div>
+
   </div><!-- /content -->
 
 </div><!-- /container -->

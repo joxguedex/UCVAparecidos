@@ -239,6 +239,48 @@ document.getElementById('btn-snapshot').addEventListener('click', async () => {
   }
 });
 
-document.getElementById('btn-refresh').addEventListener('click', load);
+document.getElementById('btn-refresh').addEventListener('click', () => { load(); loadFacultades(); });
+
+async function loadFacultades() {
+  const loadEl = document.getElementById('facultades-loading');
+  const wrapEl = document.getElementById('facultades-wrap');
+  loadEl.style.display = 'block';
+  wrapEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/stats');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { porFacultad, total, desaparecidos, aparecidos, fallecidos } = await res.json();
+
+    const tbody = document.getElementById('tbl-facultades-body');
+    const tfoot = document.getElementById('tbl-facultades-foot');
+
+    tbody.innerHTML = porFacultad.map(f => `
+      <tr>
+        <td style="font-weight:600;color:var(--text)">${f.facultad}</td>
+        <td class="color-red">${f.desaparecidos}</td>
+        <td class="color-green">${f.aparecidos}</td>
+        <td class="color-slate">${f.fallecidos}</td>
+        <td style="color:var(--text-muted)">${f.total}</td>
+      </tr>
+    `).join('');
+
+    tfoot.innerHTML = `
+      <tr style="border-top:1px solid rgba(155,181,200,.2)">
+        <td style="font-weight:700;color:var(--amber);padding-top:14px">TOTAL</td>
+        <td style="font-weight:700;color:var(--red);padding-top:14px">${desaparecidos}</td>
+        <td style="font-weight:700;color:var(--green);padding-top:14px">${aparecidos}</td>
+        <td style="font-weight:700;color:var(--slate);padding-top:14px">${fallecidos}</td>
+        <td style="font-weight:700;color:var(--amber);padding-top:14px">${total}</td>
+      </tr>
+    `;
+
+    loadEl.style.display = 'none';
+    wrapEl.style.display = 'block';
+  } catch (err) {
+    loadEl.innerHTML = `<span style="color:#E05A5A">Error al cargar facultades: ${err.message}</span>`;
+  }
+}
 
 load();
+loadFacultades();
