@@ -339,6 +339,13 @@ exports.analizarExcel = async (req, res) => {
         diffs.push({ campo: 'Contacto (Teléfono)', anterior: dbContTel || '(vacío)', nuevo: excelContTel || '(vacío)' });
       }
       
+      // 7. Grupo
+      const dbTipo = (existingStudent.tipo || '').trim();
+      const excelTipo = (studentDbObj.tipo || '').trim();
+      if (dbTipo.toLowerCase() !== excelTipo.toLowerCase()) {
+        diffs.push({ campo: 'Grupo', anterior: dbTipo || '(vacío)', nuevo: excelTipo || '(vacío)' });
+      }
+      
       if (diffs.length > 0) {
         recordsToUpdate.push({
           id: existingStudent.id,

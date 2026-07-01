@@ -912,6 +912,7 @@ function selectAdminStudent(id) {
   document.getElementById('admin-edit-nombre').value = s.nombre || '';
   document.getElementById('admin-edit-cedula').value = s.cedula || '';
   document.getElementById('admin-edit-semestre').value = s.semestre || '';
+  document.getElementById('admin-edit-tipo').value = s.tipo || 'Estudiante';
   document.getElementById('admin-edit-descripcion').value = s.descripcion || '';
   
   document.getElementById('admin-edit-contacto-nombre').value = s.nombre_contacto || '';
@@ -952,6 +953,7 @@ adminFormEditar.addEventListener('submit', async (e) => {
     nombre: document.getElementById('admin-edit-nombre').value.trim(),
     cedula: document.getElementById('admin-edit-cedula').value.trim() || null,
     semestre: document.getElementById('admin-edit-semestre').value.trim() || null,
+    tipo: document.getElementById('admin-edit-tipo').value,
     descripcion: document.getElementById('admin-edit-descripcion').value.trim() || null,
     
     estado: adminEditEstado.value,

@@ -395,10 +395,20 @@
               </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
               <div>
                 <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Semestre / Año</label>
                 <input type="text" id="admin-edit-semestre" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none">
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Tipo de persona (Grupo)</label>
+                <select id="admin-edit-tipo" class="btn btn-secondary" style="width:100%;text-align:left;padding:8px 12px;background:#0d1b2a;border-radius:8px">
+                  <option value="Estudiante">Estudiante</option>
+                  <option value="Profesor">Profesor</option>
+                  <option value="Egresado">Egresado</option>
+                  <option value="Personal">Personal</option>
+                  <option value="Otro">Otro</option>
+                </select>
               </div>
               <div>
                 <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Descripción adicional</label>

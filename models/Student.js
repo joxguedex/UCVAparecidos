@@ -152,6 +152,7 @@ const Student = {
       nombre, carrera: carreraNombre, cedula,
       semestre, ultima_ubicacion, descripcion, registrado_por,
       nombre_contacto, relacion_contacto, telefono_contacto,
+      tipo,
     } = fields;
 
     // Resolver carrera FK por nombre
@@ -182,6 +183,7 @@ const Student = {
         ultima_ubicacion: ultima_ubicacion || null,
         descripcion:      descripcion      || null,
         registrado_por:   registrado_por   || null,
+        tipo:             tipo             || 'Estudiante',
       })
       .select('id')
       .single();
@@ -219,7 +221,8 @@ const Student = {
     const {
       nombre, cedula, semestre, descripcion,
       ultima_ubicacion, latitud, longitud, estado, tipo_confirmacion, detalles_confirmacion,
-      nombre_contacto, telefono_contacto, relacion_contacto
+      nombre_contacto, telefono_contacto, relacion_contacto,
+      tipo
     } = fields;
 
     const ids     = await estadoIds();
@@ -229,6 +232,7 @@ const Student = {
     if (cedula !== undefined) payload.cedula = (cedula != null && cedula !== '') ? Number(cedula) : null;
     if (semestre !== undefined) payload.semestre = semestre || null;
     if (descripcion !== undefined) payload.descripcion = descripcion || null;
+    if (tipo !== undefined) payload.tipo = tipo || 'Estudiante';
 
     if (ultima_ubicacion !== undefined) payload.ultima_ubicacion = ultima_ubicacion || null;
 
