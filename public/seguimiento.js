@@ -462,3 +462,346 @@ async function loadFacultades() {
 
 load();
 loadFacultades();
+
+// ── Excel Import Client-Side Handling ──
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('excel-file');
+const dropText = document.getElementById('drop-text');
+const fileName = document.getElementById('file-name');
+const btnImportSubmit = document.getElementById('btn-import-submit');
+const formImportar = document.getElementById('form-importar');
+const importLoading = document.getElementById('import-loading');
+const importResult = document.getElementById('import-result');
+
+// Drag and drop event listeners
+['dragenter', 'dragover'].forEach(eventName => {
+  dropZone.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.style.borderColor = 'var(--amber)';
+    dropZone.style.backgroundColor = 'rgba(232,168,56,0.06)';
+  }, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.style.borderColor = 'rgba(155,181,200,0.2)';
+    dropZone.style.backgroundColor = 'rgba(20,34,51,0.4)';
+  }, false);
+});
+
+fileInput.addEventListener('change', handleFileSelect);
+
+function handleFileSelect(e) {
+  const file = fileInput.files[0];
+  if (file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'xls') {
+      alert('Solo se aceptan archivos .xlsx o .xls');
+      fileInput.value = '';
+      fileName.style.display = 'none';
+      dropText.style.display = 'block';
+      btnImportSubmit.disabled = true;
+      return;
+    }
+    
+    // Display file name nicely
+    fileName.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    fileName.style.display = 'block';
+    dropText.style.display = 'none';
+    btnImportSubmit.disabled = false;
+    
+    // Clear previous results
+    importResult.style.display = 'none';
+    importResult.style.borderColor = 'transparent';
+    importResult.style.backgroundColor = 'transparent';
+    importResult.innerHTML = '';
+  } else {
+    fileName.style.display = 'none';
+    dropText.style.display = 'block';
+    btnImportSubmit.disabled = true;
+  }
+}
+
+// Variables para almacenar los resultados del análisis en memoria
+let importPayload = null;
+
+// Referencias a los nuevos elementos de la vista previa
+const importPreview = document.getElementById('import-preview');
+const btnImportConfirm = document.getElementById('btn-import-confirm');
+const btnImportCancel = document.getElementById('btn-import-cancel');
+const confirmLoading = document.getElementById('confirm-loading');
+
+const lblCountNuevos = document.getElementById('lbl-count-nuevos');
+const lblCountActualizaciones = document.getElementById('lbl-count-actualizaciones');
+const lblCountNoCambios = document.getElementById('lbl-count-nocambios');
+const lblCountOmitidos = document.getElementById('lbl-count-omitidos');
+
+const tabNuevos = document.getElementById('tab-nuevos');
+const tabActualizaciones = document.getElementById('tab-actualizaciones');
+const tabOmitidos = document.getElementById('tab-omitidos');
+
+const tabContentNuevos = document.getElementById('tab-content-nuevos');
+const tabContentActualizaciones = document.getElementById('tab-content-actualizaciones');
+const tabContentOmitidos = document.getElementById('tab-content-omitidos');
+
+function getStatusBadge(status) {
+  let bg = 'rgba(155,181,200,0.12)';
+  let color = 'var(--text-muted)';
+  if (status === 'aparecido') {
+    bg = 'rgba(76,175,130,0.12)';
+    color = 'var(--green)';
+  } else if (status === 'fallecido') {
+    bg = 'rgba(224,90,90,0.12)';
+    color = '#E05A5A';
+  } else if (status === 'desaparecido') {
+    bg = 'rgba(232,168,56,0.12)';
+    color = 'var(--amber)';
+  }
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;background:${bg};color:${color};font-weight:600;font-size:11px;margin-left:6px">${status}</span>`;
+}
+
+// Configuración de pestañas de previsualización
+const tabs = [
+  { button: tabNuevos, content: tabContentNuevos },
+  { button: tabActualizaciones, content: tabContentActualizaciones },
+  { button: tabOmitidos, content: tabContentOmitidos }
+];
+
+function switchPreviewTab(activeTabId) {
+  tabs.forEach(t => {
+    if (t.button.id === `tab-${activeTabId}`) {
+      t.button.classList.add('active-tab');
+      t.content.style.display = 'block';
+    } else {
+      t.button.classList.remove('active-tab');
+      t.content.style.display = 'none';
+    }
+  });
+}
+
+tabNuevos.addEventListener('click', () => switchPreviewTab('nuevos'));
+tabActualizaciones.addEventListener('click', () => switchPreviewTab('actualizaciones'));
+tabOmitidos.addEventListener('click', () => switchPreviewTab('omitidos'));
+
+// Paso 1: Enviar formulario para analizar el Excel
+formImportar.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const file = fileInput.files[0];
+  if (!file) return;
+  
+  const token = document.getElementById('admin-token').value.trim();
+  const chkActualizar = document.getElementById('chk-actualizar').checked;
+  
+  // Limpiar estados previos
+  btnImportSubmit.disabled = true;
+  importLoading.style.display = 'inline-flex';
+  importResult.style.display = 'none';
+  importPreview.style.display = 'none';
+  importPayload = null;
+  
+  const formData = new FormData();
+  formData.append('archivo', file);
+  formData.append('actualizarExistentes', chkActualizar);
+  
+  try {
+    const headers = {};
+    if (token) {
+      headers['x-admin-token'] = token;
+    }
+    
+    const res = await fetch('/api/import/analizar', {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+    
+    if (res.status === 401) {
+      document.getElementById('admin-token').style.borderColor = '#E05A5A';
+      document.getElementById('admin-token').focus();
+      showImportResult('error', '<strong>Error de autorización:</strong> Se requiere ingresar el Token de Admin en la cabecera de la página para realizar análisis.');
+      btnImportSubmit.disabled = false;
+      return;
+    }
+    
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || `HTTP ${res.status}`);
+    }
+    
+    const data = await res.json();
+    
+    // Guardar payload analizado en memoria
+    importPayload = data.payload;
+    
+    // Renderizar estadísticas de la previsualización
+    lblCountNuevos.textContent = data.insertar.length;
+    lblCountActualizaciones.textContent = data.actualizar.length;
+    lblCountNoCambios.textContent = data.noCambiosCount;
+    lblCountOmitidos.textContent = data.omitidos.length;
+    
+    // 1. Renderizar Nuevos
+    let nuevosHtml = '';
+    if (data.insertar.length === 0) {
+      nuevosHtml = '<div style="color:var(--text-muted)">No hay nuevos estudiantes para registrar.</div>';
+    } else {
+      data.insertar.forEach(item => {
+        nuevosHtml += `<div style="margin-bottom:6px">• <strong>${item.nombre}</strong> (C.I. ${item.cedula || 'N/A'}) - Carrera: ${item.carrera} - Estado: ${getStatusBadge(item.estado)}`;
+        if (item.warnings && item.warnings.length > 0) {
+          item.warnings.forEach(w => {
+            nuevosHtml += `<span style="color:var(--text-muted);font-size:11px;display:block;margin-left:14px">⚠ ${w}</span>`;
+          });
+        }
+        nuevosHtml += `</div>`;
+      });
+    }
+    tabContentNuevos.innerHTML = nuevosHtml;
+    
+    // 2. Renderizar Modificaciones
+    let modHtml = '';
+    if (data.actualizar.length === 0) {
+      modHtml = '<div style="color:var(--text-muted)">No se detectaron modificaciones en estudiantes existentes.</div>';
+    } else {
+      data.actualizar.forEach(item => {
+        modHtml += `<div style="margin-bottom:12px;border-bottom:1px solid rgba(155,181,200,0.06);padding-bottom:8px">`;
+        modHtml += `• <strong>${item.nombre}</strong> (C.I. ${item.cedula || 'N/A'}) - Carrera: ${item.carrera}<br>`;
+        modHtml += `<div style="margin-left:14px;font-size:11.5px;color:var(--text-sec)">`;
+        item.diffs.forEach(d => {
+          let ant = d.anterior;
+          let nue = d.nuevo;
+          if (d.campo === 'Estado') {
+            ant = getStatusBadge(d.anterior);
+            nue = getStatusBadge(d.nuevo);
+          }
+          modHtml += `<div style="margin-top:4px">${d.campo}: <span style="text-decoration:line-through;opacity:0.6">${ant}</span> ➔ <span style="font-weight:600">${nue}</span></div>`;
+        });
+        modHtml += `</div></div>`;
+      });
+    }
+    tabContentActualizaciones.innerHTML = modHtml;
+    
+    // 3. Renderizar Omitidos / Errores
+    let omitHtml = '';
+    if (data.omitidos.length === 0) {
+      omitHtml = '<div style="color:var(--text-muted)">No hay registros omitidos.</div>';
+    } else {
+      data.omitidos.forEach(item => {
+        omitHtml += `<div style="color:#E05A5A;margin-bottom:4px">• Fila ${item.fila}: ${item.motivo}</div>`;
+      });
+    }
+    tabContentOmitidos.innerHTML = omitHtml;
+    
+    // Mostrar sección de previsualización y seleccionar la pestaña de Nuevos
+    importPreview.style.display = 'block';
+    switchPreviewTab('nuevos');
+    
+  } catch (err) {
+    showImportResult('error', `<strong>Error al analizar:</strong> ${err.message}`);
+    btnImportSubmit.disabled = false;
+  } finally {
+    importLoading.style.display = 'none';
+  }
+});
+
+// Cancelar la importación analizada
+btnImportCancel.addEventListener('click', () => {
+  importPreview.style.display = 'none';
+  importPayload = null;
+  btnImportSubmit.disabled = false;
+  
+  // Limpiar campo de archivo
+  fileInput.value = '';
+  fileName.style.display = 'none';
+  dropText.style.display = 'block';
+});
+
+// Paso 2: Confirmar e importar registros analizados
+btnImportConfirm.addEventListener('click', async () => {
+  if (!importPayload) return;
+  
+  const token = document.getElementById('admin-token').value.trim();
+  
+  // Mostrar loading
+  btnImportConfirm.disabled = true;
+  btnImportCancel.disabled = true;
+  confirmLoading.style.display = 'inline-flex';
+  
+  try {
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    if (token) {
+      headers['x-admin-token'] = token;
+    }
+    
+    const res = await fetch('/api/import/confirmar', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(importPayload)
+    });
+    
+    if (res.status === 401) {
+      document.getElementById('admin-token').style.borderColor = '#E05A5A';
+      document.getElementById('admin-token').focus();
+      showImportResult('error', '<strong>Error de autorización:</strong> Se requiere ingresar el Token de Admin en la cabecera de la página para confirmar.');
+      return;
+    }
+    
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || `HTTP ${res.status}`);
+    }
+    
+    const result = await res.json();
+    
+    // Renderizar éxito
+    let html = `<div style="color:var(--green);font-weight:600;margin-bottom:8px">✓ Sincronización realizada correctamente en la base de datos:</div>`;
+    html += `<div style="margin-left:12px">• <strong>${result.importados}</strong> nuevos estudiantes cargados.</div>`;
+    html += `<div style="margin-left:12px">• <strong>${result.actualizados}</strong> registros actualizados exitosamente.</div>`;
+    
+    showImportResult('success', html);
+    
+    // Ocultar sección de previsualización
+    importPreview.style.display = 'none';
+    importPayload = null;
+    
+    // Limpiar campo de archivo
+    fileInput.value = '';
+    fileName.style.display = 'none';
+    dropText.style.display = 'block';
+    
+    // Refrescar KPIs y tablas
+    load();
+    loadFacultades();
+    
+  } catch (err) {
+    showImportResult('error', `<strong>Error al guardar cambios:</strong> ${err.message}`);
+    btnImportConfirm.disabled = false;
+    btnImportCancel.disabled = false;
+  } finally {
+    confirmLoading.style.display = 'none';
+  }
+});
+
+function showImportResult(type, content) {
+  importResult.style.display = 'block';
+  importResult.innerHTML = content;
+  
+  if (type === 'success') {
+    importResult.style.backgroundColor = 'rgba(76,175,130,0.08)';
+    importResult.style.borderColor = 'rgba(76,175,130,0.22)';
+    importResult.style.color = '#E8F0F7';
+  } else if (type === 'warning') {
+    importResult.style.backgroundColor = 'rgba(232,168,56,0.08)';
+    importResult.style.borderColor = 'rgba(232,168,56,0.22)';
+    importResult.style.color = '#E8F0F7';
+  } else {
+    importResult.style.backgroundColor = 'rgba(224,90,90,0.08)';
+    importResult.style.borderColor = 'rgba(224,90,90,0.22)';
+    importResult.style.color = '#FFF';
+  }
+}

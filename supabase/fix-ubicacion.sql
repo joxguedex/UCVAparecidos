@@ -6,11 +6,13 @@ ALTER TABLE public.ubicacion
 -- 2. RLS: leer ubicaciones (para el JOIN en SELECT_FULL)
 ALTER TABLE public.ubicacion ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "anon_read" ON public.ubicacion
-  FOR SELECT TO anon USING (true);
+DO $$ BEGIN
+  CREATE POLICY "anon_read" ON public.ubicacion FOR SELECT TO anon USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-CREATE POLICY IF NOT EXISTS "anon_insert" ON public.ubicacion
-  FOR INSERT TO anon WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "anon_insert" ON public.ubicacion FOR INSERT TO anon WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- 3. Grants
 GRANT SELECT, INSERT ON public.ubicacion TO anon;

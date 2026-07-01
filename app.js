@@ -32,7 +32,7 @@ app.use(helmet({
 }));
 
 // ── Middleware ──────────────────────────────
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // ── Modo mantenimiento ──────────────────────
 if (process.env.MAINTENANCE === 'true') {

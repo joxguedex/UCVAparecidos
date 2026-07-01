@@ -4,6 +4,7 @@ const students      = require('./students');
 const stats         = require('./stats');
 const facultades    = require('./facultades');
 const snapshots     = require('./snapshots');
+const importRouter   = require('./import');
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.use('/estudiantes', students);
 router.use('/stats',       stats);
 router.use('/facultades',  facultades);
 router.use('/snapshots',   snapshots);
+router.use('/import',      importRouter);
 
 // Proxy para Nominatim (evita CSP connect-src en el cliente)
 router.get('/geocode', async (req, res) => {

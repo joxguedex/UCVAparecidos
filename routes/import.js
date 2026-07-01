@@ -1,8 +1,9 @@
 'use strict';
 const { Router } = require('express');
 const multer  = require('multer');
-const { importExcel, downloadTemplate } = require('../controllers/importController');
-const { uploadLimiter } = require('../middleware/limiters');
+const { analizarExcel, confirmarImportacion, downloadTemplate } = require('../controllers/importController');
+const { writeLimiter } = require('../middleware/limiters');
+const adminAuth   = require('../middleware/adminAuth');
 
 const EXCEL_MIMES = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -22,6 +23,7 @@ const upload = multer({
 });
 
 const router = Router();
-router.post('/',         uploadLimiter, upload.single('archivo'), importExcel);
-router.get('/plantilla', downloadTemplate);
+router.post('/analizar',  adminAuth, writeLimiter, upload.single('archivo'), analizarExcel);
+router.post('/confirmar', adminAuth, writeLimiter, confirmarImportacion);
+router.get('/plantilla',  downloadTemplate);
 module.exports = router;
