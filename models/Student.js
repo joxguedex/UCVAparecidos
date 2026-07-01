@@ -302,6 +302,27 @@ const Student = {
     if (error) throw new Error(error.message);
     return this.findById(id);
   },
+
+  async delete(id) {
+    // 1. Eliminar contacto
+    const { error: cErr } = await supabase.from('contacto').delete().eq('estudiante', id);
+    if (cErr) throw new Error(cErr.message);
+
+    // 2. Eliminar ubicacion
+    const { error: uErr } = await supabase.from('ubicacion').delete().eq('estudiante', id);
+    if (uErr) throw new Error(uErr.message);
+
+    // 3. Eliminar foto de storage
+    const { error: sErr } = await supabase.storage.from('estudiantes').remove([`fotos/${id}/avatar.webp`]);
+    if (sErr) console.error('[Student.delete] storage remove error:', sErr.message);
+
+    // 4. Eliminar estudiante
+    const { error: eErr } = await supabase.from('estudiantes').delete().eq('id', id);
+    if (eErr) throw new Error(eErr.message);
+
+    return true;
+  },
 };
 
 module.exports = Student;
+

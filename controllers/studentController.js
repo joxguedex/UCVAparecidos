@@ -50,11 +50,18 @@ exports.getOne = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { nombre, carrera, forzar } = req.body;
+  const { nombre, carrera, forzar, nombre_contacto, telefono_contacto } = req.body;
   const cedula = parseCedula(req.body.cedula);
 
   if (!nombre?.trim())  return res.status(400).json({ error: 'El nombre es requerido' });
   if (!carrera?.trim()) return res.status(400).json({ error: 'La carrera es requerida' });
+
+  if (!nombre_contacto?.trim()) {
+    return res.status(400).json({ error: 'El nombre de la persona de contacto es obligatorio' });
+  }
+  if (!telefono_contacto?.trim()) {
+    return res.status(400).json({ error: 'El teléfono de la persona de contacto es obligatorio' });
+  }
 
   try {
     if (cedula !== null) {
@@ -150,3 +157,17 @@ exports.markDeceased = async (req, res) => {
     internalError(res, err, 'markDeceased');
   }
 };
+
+exports.deleteStudent = async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'ID no válido' });
+  try {
+    const existing = await Student.findById(id);
+    if (!existing) return res.status(404).json({ error: 'Estudiante no encontrado' });
+    await Student.delete(id);
+    res.json({ success: true, message: 'Estudiante eliminado' });
+  } catch (err) {
+    internalError(res, err, 'deleteStudent');
+  }
+};
+

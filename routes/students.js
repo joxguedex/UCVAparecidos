@@ -3,6 +3,7 @@ const { Router }      = require('express');
 const multer          = require('multer');
 const ctrl            = require('../controllers/studentController');
 const { writeLimiter } = require('../middleware/limiters');
+const adminAuth   = require('../middleware/adminAuth');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -17,8 +18,10 @@ router.get ('/',               ctrl.getAll);
 router.get ('/:id/foto',       ctrl.getFoto);
 router.get ('/:id',            ctrl.getOne);
 router.post('/',               writeLimiter, upload.single('foto'), ctrl.create);
-router.put ('/:id',            writeLimiter, ctrl.update);
+router.put ('/:id',            adminAuth, writeLimiter, ctrl.update);
 router.put ('/:id/aparecio',   writeLimiter, ctrl.markFound);
 router.put ('/:id/fallecio',   writeLimiter, ctrl.markDeceased);
+router.delete('/:id',          adminAuth, writeLimiter, ctrl.deleteStudent);
 
 module.exports = router;
+

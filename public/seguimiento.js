@@ -805,3 +805,216 @@ function showImportResult(type, content) {
     importResult.style.color = '#FFF';
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Administración de Estudiantes (Edición y Eliminación Interna)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let adminCachedStudents = [];
+let adminSelectedStudentId = null;
+
+const adminSearchInput = document.getElementById('admin-search-q');
+const adminSearchBtn = document.getElementById('btn-admin-search');
+const adminSearchResults = document.getElementById('admin-search-results');
+const adminEditFormWrap = document.getElementById('admin-edit-form-wrap');
+const adminFormEditar = document.getElementById('admin-form-editar');
+const adminEditTitle = document.getElementById('admin-edit-title');
+
+const adminEditId = document.getElementById('admin-edit-id');
+const adminEditEstado = document.getElementById('admin-edit-estado');
+const adminEditTipoConf = document.getElementById('admin-edit-tipo-conf');
+const adminEditDetalles = document.getElementById('admin-edit-detalles');
+const adminEditUbicacion = document.getElementById('admin-edit-ubicacion');
+
+const adminEditConfWrap = document.getElementById('admin-edit-conf-wrap');
+const adminEditDetallesWrap = document.getElementById('admin-edit-detalles-wrap');
+
+const btnAdminDelete = document.getElementById('btn-admin-delete');
+const btnAdminCancel = document.getElementById('btn-admin-cancel');
+
+// Toggle fields based on selected state
+adminEditEstado.addEventListener('change', (e) => {
+  const v = e.target.value;
+  const isSpecial = v === 'aparecido' || v === 'fallecido';
+  adminEditConfWrap.style.display = isSpecial ? 'block' : 'none';
+  adminEditDetallesWrap.style.display = isSpecial ? 'block' : 'none';
+});
+
+// Search function
+async function handleAdminSearch() {
+  const q = adminSearchInput.value.trim().toLowerCase();
+  adminSearchResults.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;text-align:center">Buscando…</div>';
+  adminEditFormWrap.style.display = 'none';
+  adminSelectedStudentId = null;
+
+  try {
+    const res = await fetch('/api/estudiantes');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    adminCachedStudents = data;
+
+    const filtered = data.filter(s => {
+      const matchName = s.nombre.toLowerCase().includes(q);
+      const matchCedula = s.cedula && String(s.cedula).includes(q);
+      return matchName || matchCedula;
+    });
+
+    if (!filtered.length) {
+      adminSearchResults.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;text-align:center">No se encontraron estudiantes.</div>';
+      return;
+    }
+
+    adminSearchResults.innerHTML = filtered.map(s => `
+      <div class="admin-student-item" data-id="${s.id}">
+        <div>
+          <strong style="color:var(--text)">${s.nombre}</strong>
+          <span style="font-size:11.5px;color:var(--text-muted);margin-left:8px">${s.cedula ? 'C.I. ' + s.cedula : 'Sin Cédula'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-sec)">
+          <span style="text-transform:uppercase;font-weight:600;margin-right:8px" class="${s.estado === 'desaparecido' ? 'color-red' : s.estado === 'fallecido' ? 'color-slate' : 'color-green'}">${s.estado}</span>
+          <span>${s.carrera}</span>
+        </div>
+      </div>
+    `).join('');
+
+    // Add click listeners to items
+    adminSearchResults.querySelectorAll('.admin-student-item').forEach(item => {
+      item.addEventListener('click', () => {
+        adminSearchResults.querySelectorAll('.admin-student-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        selectAdminStudent(parseInt(item.dataset.id));
+      });
+    });
+
+  } catch (err) {
+    adminSearchResults.innerHTML = `<div style="padding:16px;color:var(--red);font-size:13px;text-align:center">Error: ${err.message}</div>`;
+  }
+}
+
+adminSearchBtn.addEventListener('click', handleAdminSearch);
+adminSearchInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    handleAdminSearch();
+  }
+});
+
+// Select student to edit
+function selectAdminStudent(id) {
+  const s = adminCachedStudents.find(x => x.id === id);
+  if (!s) return;
+
+  adminSelectedStudentId = id;
+  adminEditId.value = s.id;
+  adminEditTitle.textContent = `Editar: ${s.nombre}`;
+  adminEditEstado.value = s.estado;
+  adminEditTipoConf.value = s.tipo_confirmacion || '';
+  adminEditDetalles.value = s.detalles_confirmacion || '';
+  adminEditUbicacion.value = s.ultima_ubicacion || '';
+
+  const isSpecial = s.estado === 'aparecido' || s.estado === 'fallecido';
+  adminEditConfWrap.style.display = isSpecial ? 'block' : 'none';
+  adminEditDetallesWrap.style.display = isSpecial ? 'block' : 'none';
+
+  adminEditFormWrap.style.display = 'block';
+}
+
+// Cancel edit
+btnAdminCancel.addEventListener('click', () => {
+  adminEditFormWrap.style.display = 'none';
+  adminSelectedStudentId = null;
+  adminSearchResults.querySelectorAll('.admin-student-item').forEach(el => el.classList.remove('selected'));
+});
+
+// Submit changes (Edit)
+adminFormEditar.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!adminSelectedStudentId) return;
+
+  const btnSave = document.getElementById('btn-admin-save');
+  btnSave.disabled = true;
+  btnSave.textContent = 'Guardando…';
+
+  const token = document.getElementById('admin-token').value;
+  
+  const body = {
+    estado: adminEditEstado.value,
+    tipo_confirmacion: adminEditTipoConf.value || null,
+    detalles_confirmacion: adminEditDetalles.value.trim() || null,
+    ultima_ubicacion: adminEditUbicacion.value.trim() || null,
+  };
+
+  try {
+    const res = await fetch(`/api/estudiantes/${adminSelectedStudentId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': token
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    alert('Estudiante modificado correctamente.');
+    
+    // Refresh search results to show updated state
+    handleAdminSearch();
+    
+    // Update main tracking dashboard metrics
+    load();
+    loadFacultades();
+
+  } catch (err) {
+    alert('Error al guardar cambios: ' + err.message);
+  } finally {
+    btnSave.disabled = false;
+    btnSave.textContent = 'Guardar Cambios';
+  }
+});
+
+// Delete student
+btnAdminDelete.addEventListener('click', async () => {
+  if (!adminSelectedStudentId) return;
+  
+  const s = adminCachedStudents.find(x => x.id === adminSelectedStudentId);
+  if (!s) return;
+
+  const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar permanentemente a ${s.nombre} del sistema? Esta acción no se puede deshacer.`);
+  if (!confirmDelete) return;
+
+  btnAdminDelete.disabled = true;
+  btnAdminDelete.textContent = 'Eliminando…';
+
+  const token = document.getElementById('admin-token').value;
+
+  try {
+    const res = await fetch(`/api/estudiantes/${adminSelectedStudentId}`, {
+      method: 'DELETE',
+      headers: {
+        'x-admin-token': token
+      }
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    alert('Estudiante eliminado correctamente.');
+
+    // Clear search and refresh lists
+    adminSearchInput.value = '';
+    adminSearchResults.innerHTML = '<div style="padding:16px;color:var(--text-muted);font-size:13px;text-align:center">Introduce un nombre o cédula y haz clic en Buscar.</div>';
+    adminEditFormWrap.style.display = 'none';
+    adminSelectedStudentId = null;
+
+    load();
+    loadFacultades();
+
+  } catch (err) {
+    alert('Error al eliminar: ' + err.message);
+  } finally {
+    btnAdminDelete.disabled = false;
+    btnAdminDelete.textContent = 'Eliminar Estudiante';
+  }
+});

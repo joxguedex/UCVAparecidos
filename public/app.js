@@ -34,6 +34,17 @@ const api = {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
     return data;
+  },
+  async delete(url, token) {
+    const headers = {};
+    if (token) headers['x-admin-token'] = token;
+    const r = await fetch(url, {
+      method: 'DELETE',
+      headers
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    return data;
   }
 };
 
@@ -872,7 +883,6 @@ function openDetailModal(id) {
         <button class="btn-found" id="det-btn-found" data-id="${s.id}">Marcar como aparecido</button>
         <button class="btn-deceased" id="det-btn-fall" data-id="${s.id}">Reportar fallecimiento</button>
       ` : ''}
-      <button class="btn-secondary" id="det-btn-edit" data-id="${s.id}">Editar</button>
       <button class="btn-secondary" id="det-btn-share" data-id="${s.id}" title="Compartir enlace a este caso">
         <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="2"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Compartir
@@ -893,11 +903,6 @@ function openDetailModal(id) {
   if (bfall) bfall.addEventListener('click', () => {
     closeModal('modal-detalle');
     confirmAndMark(parseInt(bfall.dataset.id), 'deceased');
-  });
-  const bedit = $('det-btn-edit');
-  if (bedit) bedit.addEventListener('click', () => {
-    closeModal('modal-detalle');
-    openEditModal(parseInt(bedit.dataset.id));
   });
 
   const bshare = $('det-btn-share');
@@ -1187,7 +1192,7 @@ async function submitDesaparecido(form, forzar = false) {
 
 $('form-desaparecido').addEventListener('submit', e => {
   e.preventDefault();
-  if (!validateRequired(e.target, ['nombre', 'facultad', 'carrera'])) return;
+  if (!validateRequired(e.target, ['nombre', 'facultad', 'carrera', 'nombre_contacto', 'telefono_contacto'])) return;
   submitDesaparecido(e.target);
 });
 
