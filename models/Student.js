@@ -216,10 +216,19 @@ const Student = {
   },
 
   async update(id, fields) {
-    const { ultima_ubicacion, latitud, longitud, estado, tipo_confirmacion, detalles_confirmacion } = fields;
+    const {
+      nombre, cedula, semestre, descripcion,
+      ultima_ubicacion, latitud, longitud, estado, tipo_confirmacion, detalles_confirmacion,
+      nombre_contacto, telefono_contacto, relacion_contacto
+    } = fields;
 
     const ids     = await estadoIds();
     const payload = {};
+
+    if (nombre !== undefined) payload.nombre = nombre || null;
+    if (cedula !== undefined) payload.cedula = (cedula != null && cedula !== '') ? Number(cedula) : null;
+    if (semestre !== undefined) payload.semestre = semestre || null;
+    if (descripcion !== undefined) payload.descripcion = descripcion || null;
 
     if (ultima_ubicacion !== undefined) payload.ultima_ubicacion = ultima_ubicacion || null;
 
@@ -248,6 +257,35 @@ const Student = {
       const { error: ubErr } = await supabase.from('ubicacion')
         .insert({ estudiante: id, latitud: lat, longitud: lng });
       if (ubErr) console.error('[Student.update] ubicacion:', ubErr.message);
+    }
+
+    // Actualizar contacto
+    if (nombre_contacto !== undefined || telefono_contacto !== undefined || relacion_contacto !== undefined) {
+      const { data: contactRow } = await supabase
+        .from('contacto')
+        .select('id')
+        .eq('estudiante', id)
+        .maybeSingle();
+
+      if (contactRow) {
+        const cPayload = {};
+        if (nombre_contacto !== undefined) cPayload.nombre = nombre_contacto || null;
+        if (telefono_contacto !== undefined) cPayload.telefonos = telefono_contacto || null;
+        if (relacion_contacto !== undefined) cPayload.relacion = relacion_contacto || null;
+
+        if (Object.keys(cPayload).length) {
+          await supabase.from('contacto').update(cPayload).eq('id', contactRow.id);
+        }
+      } else {
+        if (nombre_contacto || telefono_contacto || relacion_contacto) {
+          await supabase.from('contacto').insert({
+            nombre:     nombre_contacto   || null,
+            telefonos:  telefono_contacto || null,
+            relacion:   relacion_contacto || null,
+            estudiante: id,
+          });
+        }
+      }
     }
 
     return this.findById(id);

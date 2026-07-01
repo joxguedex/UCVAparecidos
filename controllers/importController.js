@@ -420,7 +420,7 @@ exports.confirmarImportacion = async (req, res) => {
         const { data: insertedList, error: insertError } = await supabase
           .from('estudiantes')
           .insert(dbStudents)
-          .select('id, nombre');
+          .select('id, nombre, cedula');
           
         if (insertError) {
           console.error('[confirmarImportacion] error inserting batch:', insertError.message);
@@ -429,10 +429,14 @@ exports.confirmarImportacion = async (req, res) => {
         
         // Insertar contactos
         const dbContacts = [];
+        const list = insertedList || [];
         for (let j = 0; j < chunk.length; j++) {
           const item = chunk[j];
           const contact = item.contacto;
-          const insertedStudent = insertedList[j];
+          const insertedStudent = list.find(x => 
+            x.nombre === item.student.nombre &&
+            (item.student.cedula ? Number(x.cedula) === Number(item.student.cedula) : true)
+          );
           
           if (insertedStudent && (contact.nombre || contact.telefonos)) {
             dbContacts.push({

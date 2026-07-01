@@ -386,6 +386,28 @@
             
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
+                <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Nombre completo</label>
+                <input type="text" id="admin-edit-nombre" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none" required>
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Cédula de identidad</label>
+                <input type="text" id="admin-edit-cedula" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none">
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Semestre / Año</label>
+                <input type="text" id="admin-edit-semestre" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none">
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Descripción adicional</label>
+                <input type="text" id="admin-edit-descripcion" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none">
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
                 <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Estado del estudiante</label>
                 <select id="admin-edit-estado" class="btn btn-secondary" style="width:100%;text-align:left;padding:8px 12px;background:#0d1b2a;border-radius:8px">
                   <option value="desaparecido">Desaparecido</option>
@@ -414,13 +436,31 @@
             </div>
 
             <div id="admin-edit-detalles-wrap" style="display:none">
-              <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Detalles adicionales</label>
+              <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Detalles adicionales de confirmación</label>
               <textarea id="admin-edit-detalles" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13px;outline:none" rows="2" placeholder="Opcional…"></textarea>
             </div>
 
             <div>
               <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Última ubicación conocida</label>
               <input type="text" id="admin-edit-ubicacion" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none" placeholder="Lugar o dirección…">
+            </div>
+
+            <div style="border-top:1px solid rgba(155,181,200,0.1);padding-top:12px">
+              <h4 style="font-size:12px;color:var(--text-sec);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">Contacto Familiar o Conocido</h4>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                <div>
+                  <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Nombre del contacto</label>
+                  <input type="text" id="admin-edit-contacto-nombre" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none">
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Teléfono de contacto</label>
+                  <input type="text" id="admin-edit-contacto-tel" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none">
+                </div>
+                <div>
+                  <label style="display:block;font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Relación</label>
+                  <input type="text" id="admin-edit-contacto-relacion" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:#0D1B2A;color:var(--text);font-size:13.5px;outline:none" placeholder="Ej: Madre, Amigo">
+                </div>
+              </div>
             </div>
 
             <div style="display:flex;align-items:center;gap:12px;margin-top:8px">

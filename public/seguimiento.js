@@ -907,6 +907,17 @@ function selectAdminStudent(id) {
   adminSelectedStudentId = id;
   adminEditId.value = s.id;
   adminEditTitle.textContent = `Editar: ${s.nombre}`;
+  
+  // Rellenar nuevos campos
+  document.getElementById('admin-edit-nombre').value = s.nombre || '';
+  document.getElementById('admin-edit-cedula').value = s.cedula || '';
+  document.getElementById('admin-edit-semestre').value = s.semestre || '';
+  document.getElementById('admin-edit-descripcion').value = s.descripcion || '';
+  
+  document.getElementById('admin-edit-contacto-nombre').value = s.nombre_contacto || '';
+  document.getElementById('admin-edit-contacto-tel').value = s.telefono_contacto || '';
+  document.getElementById('admin-edit-contacto-relacion').value = s.relacion_contacto || '';
+
   adminEditEstado.value = s.estado;
   adminEditTipoConf.value = s.tipo_confirmacion || '';
   adminEditDetalles.value = s.detalles_confirmacion || '';
@@ -938,10 +949,19 @@ adminFormEditar.addEventListener('submit', async (e) => {
   const token = document.getElementById('admin-token').value;
   
   const body = {
+    nombre: document.getElementById('admin-edit-nombre').value.trim(),
+    cedula: document.getElementById('admin-edit-cedula').value.trim() || null,
+    semestre: document.getElementById('admin-edit-semestre').value.trim() || null,
+    descripcion: document.getElementById('admin-edit-descripcion').value.trim() || null,
+    
     estado: adminEditEstado.value,
     tipo_confirmacion: adminEditTipoConf.value || null,
     detalles_confirmacion: adminEditDetalles.value.trim() || null,
     ultima_ubicacion: adminEditUbicacion.value.trim() || null,
+    
+    nombre_contacto: document.getElementById('admin-edit-contacto-nombre').value.trim() || null,
+    telefono_contacto: document.getElementById('admin-edit-contacto-tel').value.trim() || null,
+    relacion_contacto: document.getElementById('admin-edit-contacto-relacion').value.trim() || null,
   };
 
   try {
