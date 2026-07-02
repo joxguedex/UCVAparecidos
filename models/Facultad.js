@@ -16,7 +16,9 @@ const Facultad = {
       const facNombre = c.facultad?.nombre;
       if (!facNombre) continue;
       if (!result[facNombre]) result[facNombre] = [];
-      result[facNombre].push(c.nombre);
+      if (!result[facNombre].includes(c.nombre)) {
+        result[facNombre].push(c.nombre);
+      }
     }
     return result;
   },
