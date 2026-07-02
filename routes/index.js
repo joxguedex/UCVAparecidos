@@ -14,6 +14,10 @@ router.use('/facultades',  facultades);
 router.use('/snapshots',   snapshots);
 router.use('/import',      importRouter);
 
+const sse = require('../utils/sse');
+router.get('/updates', (req, res) => {
+  sse.addClient(req, res);
+});
 // Proxy para Nominatim (evita CSP connect-src en el cliente)
 router.get('/geocode', async (req, res) => {
   const q = String(req.query.q ?? '').trim();

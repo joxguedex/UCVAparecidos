@@ -21,7 +21,7 @@ app.use(helmet({
       styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc:     ["'self'", 'https://fonts.gstatic.com'],
       imgSrc:      ["'self'", 'data:', 'https://gfmfttdfsqdzoagpduad.supabase.co'],
-      connectSrc:  ["'self'", 'https://nominatim.openstreetmap.org', 'https://gfmfttdfsqdzoagpduad.supabase.co'],
+      connectSrc:  ["'self'", 'https://nominatim.openstreetmap.org', 'https://gfmfttdfsqdzoagpduad.supabase.co', 'https://cdn.jsdelivr.net'],
       frameSrc:    ['https://www.openstreetmap.org'],
       objectSrc:   ["'none'"],
       baseUri:     ["'self'"],
@@ -46,7 +46,13 @@ if (process.env.MAINTENANCE === 'true') {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ── API routes (rate limit global) ─────────
+// ── API routes (rate limit global y no-cache) ─────────
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
 app.use('/api', apiLimiter, routes);
 
 // ── Página de seguimiento interno (URL no enlazada desde el sitio público) ──

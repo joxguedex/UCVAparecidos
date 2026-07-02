@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────
 const api = {
   async get(url) {
-    const r = await fetch(url);
+    const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return r.json();
   },
@@ -612,6 +612,8 @@ function updateSyncLabel() {
 }
 
 async function poll() {
+  // Función mantenida por compatibilidad si se llama manualmente, 
+  // pero ya no hace polling periódico gracias a SSE.
   try {
     const fresh      = await api.get('/api/estudiantes');
     const freshKey   = fresh.map(s => `${s.id}:${s.estado}`).sort().join(',');
@@ -625,15 +627,46 @@ async function poll() {
       await loadStats();
     }
   } catch {
-    // silent — network errors during polling should not disrupt the UI
+    // silent
   }
 }
 
 function startRealtime() {
   _lastSyncTime = Date.now();
   updateSyncLabel();
-  setInterval(poll, 60000);
   setInterval(updateSyncLabel, 30000);
+
+  // Conexión Server-Sent Events
+  const evtSource = new EventSource('/api/updates');
+
+  evtSource.addEventListener('student_created', async (e) => {
+    const newStudent = JSON.parse(e.data);
+    state.allStudents = [newStudent, ...state.allStudents];
+    applyFilters();
+    await loadStats();
+    _lastSyncTime = Date.now();
+    updateSyncLabel();
+  });
+
+  evtSource.addEventListener('student_updated', async (e) => {
+    const updatedStudent = JSON.parse(e.data);
+    state.allStudents = state.allStudents.map(s => 
+      s.id === updatedStudent.id ? updatedStudent : s
+    );
+    applyFilters();
+    await loadStats();
+    _lastSyncTime = Date.now();
+    updateSyncLabel();
+  });
+
+  evtSource.addEventListener('student_deleted', async (e) => {
+    const { id } = JSON.parse(e.data);
+    state.allStudents = state.allStudents.filter(s => s.id !== id);
+    applyFilters();
+    await loadStats();
+    _lastSyncTime = Date.now();
+    updateSyncLabel();
+  });
 }
 
 // ─────────────────────────────────────────

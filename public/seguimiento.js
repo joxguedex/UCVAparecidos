@@ -2,6 +2,7 @@
 
 let chartInstance = null;
 let statsCache    = null;
+let snapsCache    = null;
 
 function fmt(ts) {
   const d = new Date(ts);
@@ -20,42 +21,42 @@ function delta(curr, prev, key) {
   return `<span class="${cls}">${isPos ? '+' : ''}${diff}</span>`;
 }
 
-function renderKPIs(snaps) {
+function renderKPIs() {
   const grid = document.getElementById('kpi-grid');
-  if (!snaps.length) { grid.innerHTML = '<p style="color:var(--text-muted)">Sin datos aún.</p>'; return; }
+  if (!statsCache) return;
 
-  const first = snaps[0];
-  const last  = snaps[snaps.length - 1];
+  const first = snapsCache && snapsCache.length > 0 ? snapsCache[0] : null;
 
-  const aparecieronTotal = last.aparecidos - first.aparecidos;
-  const fallecieronTotal = last.fallecidos - first.fallecidos;
+  const aparecieronTotal = first ? statsCache.aparecidos - first.aparecidos : 0;
+  const fallecieronTotal = first ? statsCache.fallecidos - first.fallecidos : 0;
+  const despDelta = first ? statsCache.desaparecidos - first.desaparecidos : 0;
 
   const cards = [
     {
       label: 'Desaparecidos actuales',
-      val: last.desaparecidos,
+      val: statsCache.desaparecidos,
       cls: 'color-red',
-      note: snaps.length > 1
-        ? `${last.desaparecidos - first.desaparecidos > 0 ? '+' : ''}${last.desaparecidos - first.desaparecidos} desde el inicio`
-        : 'Primer registro',
+      note: first
+        ? `${despDelta > 0 ? '+' : ''}${despDelta} desde el inicio`
+        : 'Datos en vivo',
     },
     {
       label: 'Aparecidos totales',
-      val: last.aparecidos,
+      val: statsCache.aparecidos,
       cls: 'color-green',
-      note: snaps.length > 1 ? `+${aparecieronTotal} desde el inicio` : 'Primer registro',
+      note: first ? `+${aparecieronTotal} desde el inicio` : 'Datos en vivo',
     },
     {
       label: 'Fallecidos confirmados',
-      val: last.fallecidos,
+      val: statsCache.fallecidos,
       cls: 'color-slate',
-      note: snaps.length > 1 ? `+${fallecieronTotal} desde el inicio` : 'Primer registro',
+      note: first ? `+${fallecieronTotal} desde el inicio` : 'Datos en vivo',
     },
     {
       label: 'Total registrados',
-      val: last.total,
+      val: statsCache.total,
       cls: 'color-amber',
-      note: `${snaps.length} snapshot${snaps.length !== 1 ? 's' : ''} registrados`,
+      note: 'Datos en vivo',
     },
   ];
 
@@ -188,7 +189,8 @@ async function load() {
         'Último snapshot: ' + fmt(data[data.length - 1].tomado_en);
     }
 
-    renderKPIs(data);
+    snapsCache = data;
+    renderKPIs();
     try { renderChart(data); } catch { /* gráfica falla sin bloquear la tabla */ }
     renderTable(data);
   } catch (err) {
@@ -428,6 +430,7 @@ async function loadFacultades() {
     const json = await res.json();
     const { porFacultad, total, desaparecidos, aparecidos, fallecidos } = json;
     statsCache = json;
+    renderKPIs();
 
     const tbody = document.getElementById('tbl-facultades-body');
     const tfoot = document.getElementById('tbl-facultades-foot');
@@ -848,7 +851,7 @@ async function handleAdminSearch() {
   adminSelectedStudentId = null;
 
   try {
-    const res = await fetch('/api/estudiantes');
+    const res = await fetch('/api/estudiantes', { cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     adminCachedStudents = data;
@@ -1039,4 +1042,39 @@ btnAdminDelete.addEventListener('click', async () => {
     btnAdminDelete.disabled = false;
     btnAdminDelete.textContent = 'Eliminar Estudiante';
   }
+});
+
+// ─────────────────────────────────────────
+//  Realtime Server-Sent Events
+// ─────────────────────────────────────────
+const evtSource = new EventSource('/api/updates');
+
+evtSource.addEventListener('student_created', (e) => {
+  const newStudent = JSON.parse(e.data);
+  adminCachedStudents = [newStudent, ...adminCachedStudents];
+  if (adminSearchInput.value.trim()) handleAdminSearch();
+  load(); 
+  loadFacultades(); // Actualizar las estadísticas de facultades (desaparecidos, etc)
+});
+
+evtSource.addEventListener('student_updated', (e) => {
+  const updatedStudent = JSON.parse(e.data);
+  adminCachedStudents = adminCachedStudents.map(s => 
+    s.id === updatedStudent.id ? updatedStudent : s
+  );
+  if (adminSearchInput.value.trim()) handleAdminSearch();
+  load(); 
+  loadFacultades(); 
+});
+
+evtSource.addEventListener('student_deleted', (e) => {
+  const { id } = JSON.parse(e.data);
+  adminCachedStudents = adminCachedStudents.filter(s => s.id !== id);
+  if (adminSearchInput.value.trim()) handleAdminSearch();
+  if (adminSelectedStudentId === id) {
+    adminEditFormWrap.style.display = 'none';
+    adminSelectedStudentId = null;
+  }
+  load(); 
+  loadFacultades(); 
 });
