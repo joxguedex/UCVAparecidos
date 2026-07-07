@@ -131,17 +131,35 @@ exports.analizarExcel = async (req, res) => {
       estadoMap[e.nombre.toLowerCase().trim()] = e.id;
     }
 
-    // Traer estudiantes existentes y sus contactos para compararlos
-    const { data: existing, error: existErr } = await supabase
-      .from('estudiantes')
-      .select(`
-        id, nombre, cedula, semestre, ultima_ubicacion, descripcion, tipo,
-        estado(id, nombre),
-        carrera(id, nombre),
-        contacto(id, nombre, telefonos, relacion)
-      `);
-    if (existErr) throw existErr;
+    // Traer estudiantes existentes y sus contactos para compararlos (Paginado porque hay más de 1000)
+    let existing = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
+    while (hasMore) {
+      const { data: chunk, error: existErr } = await supabase
+        .from('estudiantes')
+        .select(`
+          id, nombre, cedula, semestre, ultima_ubicacion, descripcion, tipo,
+          estado(id, nombre),
+          carrera(id, nombre),
+          contacto(id, nombre, telefonos, relacion)
+        `)
+        .range(from, from + pageSize - 1);
+
+      if (existErr) throw existErr;
+      
+      if (chunk && chunk.length > 0) {
+        existing.push(...chunk);
+        from += pageSize;
+        if (chunk.length < pageSize) {
+          hasMore = false;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
     for (const st of existing) {
       if (st.cedula) {
         studentLookup['c_' + st.cedula] = st;
