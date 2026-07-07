@@ -70,4 +70,17 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ── Manejador de errores: las rutas /api siempre responden JSON ──
+// (evita que un error inesperado devuelva una página HTML 500 que el
+//  cliente no sabe interpretar).
+app.use((err, req, res, _next) => {
+  console.error('[error]', err.message);
+  if (res.headersSent) return _next(err);
+  const status = err.status || err.statusCode || 500;
+  if (req.path.startsWith('/api/') || req.path === '/api') {
+    return res.status(status).json({ error: err.message || 'Error interno del servidor.' });
+  }
+  res.status(status).send('Error interno del servidor.');
+});
+
 module.exports = app;

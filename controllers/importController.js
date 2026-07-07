@@ -415,7 +415,8 @@ exports.confirmarImportacion = async (req, res) => {
   
   let insertados = 0;
   let actualizados = 0;
-  
+  let contactosFallidos = 0;
+
   try {
     // 1. Inserción de nuevos estudiantes
     if (insertar.length > 0) {
@@ -459,6 +460,7 @@ exports.confirmarImportacion = async (req, res) => {
             .insert(dbContacts);
           if (contactError) {
             console.error('[confirmarImportacion] error inserting contacts:', contactError.message);
+            contactosFallidos += dbContacts.length;
           }
         }
         
@@ -485,12 +487,16 @@ exports.confirmarImportacion = async (req, res) => {
         const contact = item.contacto;
         if (contact.nombre || contact.telefonos) {
           await supabase.from('contacto').delete().eq('estudiante', item.id);
-          await supabase.from('contacto').insert({
+          const { error: contactError } = await supabase.from('contacto').insert({
             ...contact,
             estudiante: item.id
           });
+          if (contactError) {
+            console.error(`[confirmarImportacion] error updating contact for student ${item.id}:`, contactError.message);
+            contactosFallidos++;
+          }
         }
-        
+
         actualizados++;
       }
     }
@@ -500,10 +506,16 @@ exports.confirmarImportacion = async (req, res) => {
     return res.status(500).json({ error: 'Error inesperado al guardar los datos: ' + err.message });
   }
   
-  res.json({
+  const respuesta = {
     importados: insertados,
     actualizados: actualizados
-  });
+  };
+  if (contactosFallidos > 0) {
+    respuesta.advertencia =
+      `No se pudieron guardar ${contactosFallidos} contacto(s) por permisos de la base de datos. ` +
+      `Configura SUPABASE_SERVICE_ROLE_KEY o revisa las políticas RLS de la tabla "contacto".`;
+  }
+  res.json(respuesta);
 };
 
 exports.downloadTemplate = (_req, res) => {

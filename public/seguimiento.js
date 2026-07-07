@@ -765,7 +765,11 @@ btnImportConfirm.addEventListener('click', async () => {
     let html = `<div style="color:var(--green);font-weight:600;margin-bottom:8px">✓ Sincronización realizada correctamente en la base de datos:</div>`;
     html += `<div style="margin-left:12px">• <strong>${result.importados}</strong> nuevos estudiantes cargados.</div>`;
     html += `<div style="margin-left:12px">• <strong>${result.actualizados}</strong> registros actualizados exitosamente.</div>`;
-    
+
+    if (result.advertencia) {
+      html += `<div style="color:var(--amber);margin-top:8px">⚠ ${result.advertencia}</div>`;
+    }
+
     showImportResult('success', html);
     
     // Ocultar sección de previsualización
