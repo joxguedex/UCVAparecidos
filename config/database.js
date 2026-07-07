@@ -7,7 +7,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws'); // requerido en Node.js < 22
 
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_KEY;
+const adminKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!process.env.SUPABASE_URL || !supabaseKey) {
   throw new Error(
@@ -19,4 +20,8 @@ const supabase = createClient(process.env.SUPABASE_URL, supabaseKey, {
   realtime: { transport: ws },
 });
 
-module.exports = { supabase };
+const supabaseAdmin = adminKey ? createClient(process.env.SUPABASE_URL, adminKey, {
+  realtime: { transport: ws },
+}) : supabase;
+
+module.exports = { supabase, supabaseAdmin };

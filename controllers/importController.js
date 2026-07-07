@@ -1,6 +1,6 @@
 'use strict';
 const xlsx = require('xlsx');
-const { supabase } = require('../config/database');
+const { supabase, supabaseAdmin } = require('../config/database');
 
 // Robust normalization of headers to snake_case
 function normalizeHeader(h) {
@@ -443,7 +443,7 @@ exports.confirmarImportacion = async (req, res) => {
         const chunk = insertar.slice(i, i + BATCH);
         const dbStudents = chunk.map(r => r.student);
         
-        const { data: insertedList, error: insertError } = await supabase
+        const { data: insertedList, error: insertError } = await supabaseAdmin
           .from('estudiantes')
           .insert(dbStudents)
           .select('id, nombre, cedula');
@@ -473,7 +473,7 @@ exports.confirmarImportacion = async (req, res) => {
         }
         
         if (dbContacts.length > 0) {
-          const { error: contactError } = await supabase
+          const { error: contactError } = await supabaseAdmin
             .from('contacto')
             .insert(dbContacts);
           if (contactError) {
@@ -491,7 +491,7 @@ exports.confirmarImportacion = async (req, res) => {
       for (let i = 0; i < actualizar.length; i++) {
         const item = actualizar[i];
         
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseAdmin
           .from('estudiantes')
           .update(item.student)
           .eq('id', item.id);
@@ -504,8 +504,8 @@ exports.confirmarImportacion = async (req, res) => {
         // Actualizar contacto (borrar anterior y volver a insertar si aplica)
         const contact = item.contacto;
         if (contact.nombre || contact.telefonos) {
-          await supabase.from('contacto').delete().eq('estudiante', item.id);
-          const { error: contactError } = await supabase.from('contacto').insert({
+          await supabaseAdmin.from('contacto').delete().eq('estudiante', item.id);
+          const { error: contactError } = await supabaseAdmin.from('contacto').insert({
             ...contact,
             estudiante: item.id
           });

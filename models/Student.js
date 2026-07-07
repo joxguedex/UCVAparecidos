@@ -1,5 +1,5 @@
 'use strict';
-const { supabase } = require('../config/database');
+const { supabase, supabaseAdmin } = require('../config/database');
 
 // Columnas para selects completos — resuelve FKs con embedded joins
 const SELECT_FULL = [
@@ -141,7 +141,7 @@ const Student = {
   },
 
   async uploadFoto(id, buffer, mimetype) {
-    const { error } = await supabase.storage
+    const { error } = await supabaseAdmin.storage
       .from('estudiantes')
       .upload(`fotos/${id}/avatar.webp`, buffer, { contentType: mimetype, upsert: true });
     if (error) console.error('[Student.uploadFoto]', error.message);
@@ -172,7 +172,7 @@ const Student = {
     const latitud  = fields.latitud  != null && fields.latitud  !== '' ? parseFloat(fields.latitud)  : null;
     const longitud = fields.longitud != null && fields.longitud !== '' ? parseFloat(fields.longitud) : null;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('estudiantes')
       .insert({
         nombre,
@@ -192,7 +192,7 @@ const Student = {
 
     // Guardar coordenadas en tabla ubicacion
     if (latitud != null && longitud != null) {
-      const { error: ubErr } = await supabase
+      const { error: ubErr } = await supabaseAdmin
         .from('ubicacion')
         .insert({ estudiante: data.id, latitud, longitud });
       if (ubErr) console.error('[Student.create] ubicacion insert error:', ubErr.message);
@@ -205,7 +205,7 @@ const Student = {
 
     // Insertar registro de contacto si se proporcionó información
     if (nombre_contacto || telefono_contacto) {
-      const { error: cErr } = await supabase.from('contacto').insert({
+      const { error: cErr } = await supabaseAdmin.from('contacto').insert({
         nombre:     nombre_contacto   || null,
         telefonos:  telefono_contacto || null,
         relacion:   relacion_contacto || null,
@@ -250,15 +250,15 @@ const Student = {
     }
 
     if (Object.keys(payload).length) {
-      const { error } = await supabase.from('estudiantes').update(payload).eq('id', id);
+      const { error } = await supabaseAdmin.from('estudiantes').update(payload).eq('id', id);
       if (error) throw new Error(error.message);
     }
 
     const lat = latitud  != null && latitud  !== '' ? parseFloat(latitud)  : null;
     const lng = longitud != null && longitud !== '' ? parseFloat(longitud) : null;
     if (lat != null && lng != null) {
-      await supabase.from('ubicacion').delete().eq('estudiante', id);
-      const { error: ubErr } = await supabase.from('ubicacion')
+      await supabaseAdmin.from('ubicacion').delete().eq('estudiante', id);
+      const { error: ubErr } = await supabaseAdmin.from('ubicacion')
         .insert({ estudiante: id, latitud: lat, longitud: lng });
       if (ubErr) console.error('[Student.update] ubicacion:', ubErr.message);
     }
@@ -278,11 +278,11 @@ const Student = {
         if (relacion_contacto !== undefined) cPayload.relacion = relacion_contacto || null;
 
         if (Object.keys(cPayload).length) {
-          await supabase.from('contacto').update(cPayload).eq('id', contactRow.id);
+          await supabaseAdmin.from('contacto').update(cPayload).eq('id', contactRow.id);
         }
       } else {
         if (nombre_contacto || telefono_contacto || relacion_contacto) {
-          await supabase.from('contacto').insert({
+          await supabaseAdmin.from('contacto').insert({
             nombre:     nombre_contacto   || null,
             telefonos:  telefono_contacto || null,
             relacion:   relacion_contacto || null,
@@ -304,7 +304,7 @@ const Student = {
     } = fields;
 
     const ids = await estadoIds();
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('estudiantes')
       .update({
         estado:                  ids['aparecido'],
@@ -329,7 +329,7 @@ const Student = {
     } = fields;
 
     const ids = await estadoIds();
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('estudiantes')
       .update({
         estado:                  ids['fallecido'],
@@ -347,19 +347,19 @@ const Student = {
 
   async delete(id) {
     // 1. Eliminar contacto
-    const { error: cErr } = await supabase.from('contacto').delete().eq('estudiante', id);
+    const { error: cErr } = await supabaseAdmin.from('contacto').delete().eq('estudiante', id);
     if (cErr) throw new Error(cErr.message);
 
     // 2. Eliminar ubicacion
-    const { error: uErr } = await supabase.from('ubicacion').delete().eq('estudiante', id);
+    const { error: uErr } = await supabaseAdmin.from('ubicacion').delete().eq('estudiante', id);
     if (uErr) throw new Error(uErr.message);
 
     // 3. Eliminar foto de storage
-    const { error: sErr } = await supabase.storage.from('estudiantes').remove([`fotos/${id}/avatar.webp`]);
+    const { error: sErr } = await supabaseAdmin.storage.from('estudiantes').remove([`fotos/${id}/avatar.webp`]);
     if (sErr) console.error('[Student.delete] storage remove error:', sErr.message);
 
     // 4. Eliminar estudiante
-    const { error: eErr } = await supabase.from('estudiantes').delete().eq('id', id);
+    const { error: eErr } = await supabaseAdmin.from('estudiantes').delete().eq('id', id);
     if (eErr) throw new Error(eErr.message);
 
     return true;
