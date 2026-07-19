@@ -170,11 +170,15 @@ function renderTable(snaps) {
   }).join('');
 }
 
-async function load() {
+// `silent`: refresco en segundo plano — no muestra el spinner ni oculta el
+// contenido, así el sondeo periódico no hace parpadear la pantalla.
+async function load(silent = false) {
   const loadingEl = document.getElementById('loading');
   const contentEl = document.getElementById('content');
-  loadingEl.style.display = 'block';
-  contentEl.style.display = 'none';
+  if (!silent) {
+    loadingEl.style.display = 'block';
+    contentEl.style.display = 'none';
+  }
 
   try {
     const res = await fetch('/api/snapshots');
@@ -418,11 +422,13 @@ document.getElementById('btn-compartir').addEventListener('click', async () => {
   }
 });
 
-async function loadFacultades() {
+async function loadFacultades(silent = false) {
   const loadEl = document.getElementById('facultades-loading');
   const wrapEl = document.getElementById('facultades-wrap');
-  loadEl.style.display = 'block';
-  wrapEl.style.display = 'none';
+  if (!silent) {
+    loadEl.style.display = 'block';
+    wrapEl.style.display = 'none';
+  }
 
   try {
     const res = await fetch('/api/stats');
@@ -1049,36 +1055,38 @@ btnAdminDelete.addEventListener('click', async () => {
 });
 
 // ─────────────────────────────────────────
-//  Realtime Server-Sent Events
+//  Refresco periódico
 // ─────────────────────────────────────────
-const evtSource = new EventSource('/api/updates');
+const POLL_MS = 30000;
 
-evtSource.addEventListener('student_created', (e) => {
-  const newStudent = JSON.parse(e.data);
-  adminCachedStudents = [newStudent, ...adminCachedStudents];
-  if (adminSearchInput.value.trim()) handleAdminSearch();
-  load(); 
-  loadFacultades(); // Actualizar las estadísticas de facultades (desaparecidos, etc)
-});
+(function startPolling() {
+  let timer = null;
 
-evtSource.addEventListener('student_updated', (e) => {
-  const updatedStudent = JSON.parse(e.data);
-  adminCachedStudents = adminCachedStudents.map(s => 
-    s.id === updatedStudent.id ? updatedStudent : s
-  );
-  if (adminSearchInput.value.trim()) handleAdminSearch();
-  load(); 
-  loadFacultades(); 
-});
-
-evtSource.addEventListener('student_deleted', (e) => {
-  const { id } = JSON.parse(e.data);
-  adminCachedStudents = adminCachedStudents.filter(s => s.id !== id);
-  if (adminSearchInput.value.trim()) handleAdminSearch();
-  if (adminSelectedStudentId === id) {
-    adminEditFormWrap.style.display = 'none';
-    adminSelectedStudentId = null;
+  function refresh() {
+    // Silencioso: sin spinners, para que el refresco pase desapercibido.
+    load(true);
+    loadFacultades(true);
   }
-  load(); 
-  loadFacultades(); 
-});
+
+  function start() {
+    if (timer) return;
+    timer = setInterval(refresh, POLL_MS);
+  }
+
+  function stop() {
+    clearInterval(timer);
+    timer = null;
+  }
+
+  // Con la pestaña oculta no se sondea; al volver se refresca de inmediato.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stop();
+    } else {
+      refresh();
+      start();
+    }
+  });
+
+  if (!document.hidden) start();
+})();

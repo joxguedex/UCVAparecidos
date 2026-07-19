@@ -1,7 +1,6 @@
 'use strict';
 const Student             = require('../models/Student');
 const { supabase }        = require('../config/database');
-const sse                 = require('../utils/sse');
 
 const VALID_CONF = new Set([
   'contacto_directo', 'llamada_telefonica', 'mensaje_texto',
@@ -88,7 +87,6 @@ exports.create = async (req, res) => {
     }
 
     const newStudent = await Student.create({ ...req.body, cedula, _file: req.file || null });
-    sse.broadcast('student_created', newStudent);
     res.status(201).json(newStudent);
   } catch (err) {
     internalError(res, err, 'create');
@@ -116,7 +114,6 @@ exports.update = async (req, res) => {
     const student = await Student.findById(id);
     if (!student) return res.status(404).json({ error: 'Estudiante no encontrado' });
     const updated = await Student.update(id, req.body);
-    sse.broadcast('student_updated', updated);
     res.json(updated);
   } catch (err) {
     internalError(res, err, 'update');
@@ -138,7 +135,6 @@ exports.markFound = async (req, res) => {
       return res.status(409).json({ error: 'Solo se pueden marcar como aparecidos estudiantes desaparecidos' });
     }
     const updated = await Student.markFound(id, req.body);
-    sse.broadcast('student_updated', updated);
     res.json(updated);
   } catch (err) {
     internalError(res, err, 'markFound');
@@ -160,7 +156,6 @@ exports.markDeceased = async (req, res) => {
       return res.status(409).json({ error: 'Solo se pueden registrar como fallecidos estudiantes desaparecidos' });
     }
     const updated = await Student.markDeceased(id, req.body);
-    sse.broadcast('student_updated', updated);
     res.json(updated);
   } catch (err) {
     internalError(res, err, 'markDeceased');
@@ -174,7 +169,6 @@ exports.deleteStudent = async (req, res) => {
     const existing = await Student.findById(id);
     if (!existing) return res.status(404).json({ error: 'Estudiante no encontrado' });
     await Student.delete(id);
-    sse.broadcast('student_deleted', { id });
     res.json({ success: true, message: 'Estudiante eliminado' });
   } catch (err) {
     internalError(res, err, 'deleteStudent');

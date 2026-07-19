@@ -13,13 +13,14 @@
 require('dotenv').config();
 
 const app  = require('./app');
-const seed = require('./data/seed');
-
-// Ejecuta el seed de forma no-bloqueante (solo inserta si la tabla está vacía)
-seed().catch(err => console.warn('  ⚠  Seed:', err.message));
 
 // Arrancar servidor HTTP solo cuando se ejecuta directamente (no en Vercel)
 if (require.main === module) {
+  // El seed solo corre en local. En serverless se ejecutaba en cada cold start,
+  // gastando una consulta a Supabase por arranque sin insertar nada.
+  // Para sembrar manualmente: `npm run seed`
+  require('./data/seed')().catch(err => console.warn('  ⚠  Seed:', err.message));
+
   const PORT = process.env.PORT || 3000;
 
   app.listen(PORT, () => {

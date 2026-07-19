@@ -611,62 +611,76 @@ function updateSyncLabel() {
     : `· actualizado hace ${Math.floor(ago / 60)} min`;
 }
 
+// Firma del último /api/stats visto, para detectar cambios sin bajar la lista.
+let _lastStatsKey = null;
+
+function statsKey(stats) {
+  return JSON.stringify([
+    stats.total, stats.desaparecidos, stats.aparecidos, stats.fallecidos,
+    stats.porFacultad?.map(f => [f.facultad, f.desaparecidos, f.aparecidos, f.fallecidos]),
+  ]);
+}
+
 async function poll() {
-  // Función mantenida por compatibilidad si se llama manualmente, 
-  // pero ya no hace polling periódico gracias a SSE.
+  // Sondeo en dos fases. /api/stats pesa ~1 KB; la lista completa ~1 MB.
+  // Solo se baja la lista cuando la firma de stats cambió, así el caso
+  // normal (nada nuevo) cuesta 1 KB en vez de 1 MB.
   try {
-    const fresh      = await api.get('/api/estudiantes');
-    const freshKey   = fresh.map(s => `${s.id}:${s.estado}`).sort().join(',');
-    const currentKey = state.allStudents.map(s => `${s.id}:${s.estado}`).sort().join(',');
-    const changed    = freshKey !== currentKey;
-    state.allStudents = fresh;
+    const stats = await api.get('/api/stats');
     _lastSyncTime = Date.now();
     updateSyncLabel();
-    if (changed) {
-      applyFilters();
-      await loadStats();
-    }
+
+    const key = statsKey(stats);
+    if (key === _lastStatsKey) return; // sin cambios: no se baja nada más
+    _lastStatsKey = key;
+
+    state.stats = stats;
+    renderStats();
+    renderFacultyBar();
+
+    state.allStudents = await api.get('/api/estudiantes');
+    applyFilters();
   } catch {
     // silent
   }
 }
+
+// Intervalo entre sondeos mientras la pestaña está visible.
+const POLL_MS = 25000;
 
 function startRealtime() {
   _lastSyncTime = Date.now();
   updateSyncLabel();
   setInterval(updateSyncLabel, 30000);
 
-  // Conexión Server-Sent Events
-  const evtSource = new EventSource('/api/updates');
+  // Arranca con la firma de los datos ya cargados, para que el primer
+  // sondeo no baje la lista completa sin necesidad.
+  if (state.stats) _lastStatsKey = statsKey(state.stats);
 
-  evtSource.addEventListener('student_created', async (e) => {
-    const newStudent = JSON.parse(e.data);
-    state.allStudents = [newStudent, ...state.allStudents];
-    applyFilters();
-    await loadStats();
-    _lastSyncTime = Date.now();
-    updateSyncLabel();
+  let timer = null;
+
+  function start() {
+    if (timer) return;
+    timer = setInterval(poll, POLL_MS);
+  }
+
+  function stop() {
+    clearInterval(timer);
+    timer = null;
+  }
+
+  // En pestañas ocultas no se sondea: no hay nadie mirando y cada request
+  // cuesta recursos en el servidor. Al volver, se refresca de inmediato.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stop();
+    } else {
+      poll();
+      start();
+    }
   });
 
-  evtSource.addEventListener('student_updated', async (e) => {
-    const updatedStudent = JSON.parse(e.data);
-    state.allStudents = state.allStudents.map(s => 
-      s.id === updatedStudent.id ? updatedStudent : s
-    );
-    applyFilters();
-    await loadStats();
-    _lastSyncTime = Date.now();
-    updateSyncLabel();
-  });
-
-  evtSource.addEventListener('student_deleted', async (e) => {
-    const { id } = JSON.parse(e.data);
-    state.allStudents = state.allStudents.filter(s => s.id !== id);
-    applyFilters();
-    await loadStats();
-    _lastSyncTime = Date.now();
-    updateSyncLabel();
-  });
+  if (!document.hidden) start();
 }
 
 // ─────────────────────────────────────────
@@ -1093,13 +1107,15 @@ function openDeceasedModal(id) {
 // ─────────────────────────────────────────
 //  Data loading
 // ─────────────────────────────────────────
-async function loadStats() {
+// `silent`: en refrescos de fondo no se avisa al usuario de un fallo de red
+// pasajero; el siguiente sondeo lo resuelve solo.
+async function loadStats(silent = false) {
   try {
     state.stats = await api.get('/api/stats');
     renderStats();
     renderFacultyBar();
   } catch {
-    toast('No se pudieron cargar las estadísticas. Recarga la página.', 'error');
+    if (!silent) toast('No se pudieron cargar las estadísticas. Recarga la página.', 'error');
   }
 }
 

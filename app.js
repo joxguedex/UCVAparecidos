@@ -7,6 +7,7 @@
 const express    = require('express');
 const path       = require('path');
 const helmet     = require('helmet');
+const compression = require('compression');
 const routes     = require('./routes/index');
 const { apiLimiter } = require('./middleware/limiters');
 
@@ -32,6 +33,9 @@ app.use(helmet({
 }));
 
 // ── Middleware ──────────────────────────────
+// gzip: la lista de estudiantes es ~1 MB en JSON y comprime muchísimo.
+// Reduce el ancho de banda facturado y acelera la carga inicial.
+app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 
 // ── Modo mantenimiento ──────────────────────

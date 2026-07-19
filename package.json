@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "seed": "node -e \"require('./data/seed')().then(()=>process.exit(0))\""
   },
   "keywords": [
     "ucv",
@@ -17,6 +18,7 @@
   "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
+    "compression": "^1.8.1",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
     "express-rate-limit": "^8.5.2",
