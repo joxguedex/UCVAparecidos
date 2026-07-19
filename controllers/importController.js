@@ -487,35 +487,50 @@ exports.confirmarImportacion = async (req, res) => {
     }
     
     // 2. Actualización de estudiantes existentes
-    if (actualizar.length > 0) {
-      for (let i = 0; i < actualizar.length; i++) {
-        const item = actualizar[i];
-        
-        const { error: updateError } = await supabaseAdmin
-          .from('estudiantes')
-          .update(item.student)
-          .eq('id', item.id);
-          
-        if (updateError) {
-          console.error(`[confirmarImportacion] error updating student ${item.id}:`, updateError.message);
-          continue;
-        }
-        
-        // Actualizar contacto (borrar anterior y volver a insertar si aplica)
-        const contact = item.contacto;
-        if (contact.nombre || contact.telefonos) {
-          await supabaseAdmin.from('contacto').delete().eq('estudiante', item.id);
-          const { error: contactError } = await supabaseAdmin.from('contacto').insert({
-            ...contact,
-            estudiante: item.id
-          });
-          if (contactError) {
-            console.error(`[confirmarImportacion] error updating contact for student ${item.id}:`, contactError.message);
-            contactosFallidos++;
-          }
-        }
+    //
+    // Supabase no permite actualizar filas con valores distintos en una sola
+    // llamada, así que cada estudiante necesita su propia petición (más otras
+    // dos si hay que rehacer el contacto). En secuencia eso son cientos de
+    // viajes encadenados: con 322 actualizaciones y ~200 ms de latencia se
+    // pasaba de los 60 s y la función moría a mitad de la importación.
+    // Se procesan en tandas concurrentes para que el tiempo total baje
+    // proporcionalmente, sin abrir tantas conexiones como para saturar.
+    const CONCURRENCIA = 8;
 
-        actualizados++;
+    async function aplicarActualizacion(item) {
+      const { error: updateError } = await supabaseAdmin
+        .from('estudiantes')
+        .update(item.student)
+        .eq('id', item.id);
+
+      if (updateError) {
+        console.error(`[confirmarImportacion] error updating student ${item.id}:`, updateError.message);
+        return { actualizado: false, contactoFallido: false };
+      }
+
+      // Actualizar contacto (borrar anterior y volver a insertar si aplica)
+      const contact = item.contacto;
+      if (contact.nombre || contact.telefonos) {
+        await supabaseAdmin.from('contacto').delete().eq('estudiante', item.id);
+        const { error: contactError } = await supabaseAdmin.from('contacto').insert({
+          ...contact,
+          estudiante: item.id
+        });
+        if (contactError) {
+          console.error(`[confirmarImportacion] error updating contact for student ${item.id}:`, contactError.message);
+          return { actualizado: true, contactoFallido: true };
+        }
+      }
+
+      return { actualizado: true, contactoFallido: false };
+    }
+
+    for (let i = 0; i < actualizar.length; i += CONCURRENCIA) {
+      const tanda = actualizar.slice(i, i + CONCURRENCIA);
+      const resultados = await Promise.all(tanda.map(aplicarActualizacion));
+      for (const r of resultados) {
+        if (r.actualizado)     actualizados++;
+        if (r.contactoFallido) contactosFallidos++;
       }
     }
     
