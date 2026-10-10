@@ -861,7 +861,11 @@ async function handleAdminSearch() {
   adminSelectedStudentId = null;
 
   try {
-    const res = await fetch('/api/estudiantes', { cache: 'no-store' });
+    const token = document.getElementById('admin-token').value.trim();
+    const headers = {};
+    if (token) headers['x-admin-token'] = token;
+
+    const res = await fetch('/api/estudiantes', { headers, cache: 'no-store' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     adminCachedStudents = data;
@@ -1053,6 +1057,83 @@ btnAdminDelete.addEventListener('click', async () => {
     btnAdminDelete.textContent = 'Eliminar Estudiante';
   }
 });
+
+// ─────────────────────────────────────────
+//  Exportación CSV Oficial (Solo Admin)
+// ─────────────────────────────────────────
+const btnAdminExport = document.getElementById('btn-admin-export-csv');
+if (btnAdminExport) {
+  btnAdminExport.addEventListener('click', async () => {
+    const token = document.getElementById('admin-token').value.trim();
+    if (!token) {
+      alert('Por favor ingresa el Token de Admin en la barra superior para exportar la base de datos completa.');
+      document.getElementById('admin-token').focus();
+      return;
+    }
+
+    btnAdminExport.disabled = true;
+    btnAdminExport.textContent = 'Exportando…';
+
+    try {
+      const res = await fetch('/api/estudiantes', {
+        headers: { 'x-admin-token': token },
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const list = await res.json();
+
+      if (!list.length) {
+        alert('No hay estudiantes para exportar.');
+        return;
+      }
+
+      const headers = [
+        'Nombre', 'Cédula', 'Facultad', 'Carrera', 'Semestre', 'Tipo',
+        'Estado', 'Última ubicación', 'Fecha registro', 'Registrado por',
+        'Fecha apareció', 'Tipo confirmación', 'Detalles confirmación',
+        'Contacto nombre', 'Teléfono contacto', 'Relación contacto'
+      ];
+
+      const rows = list.map(s => [
+        s.nombre ?? '',
+        s.cedula ?? '',
+        s.facultad ?? '',
+        s.carrera ?? '',
+        s.semestre ?? '',
+        s.tipo ?? '',
+        s.estado ?? '',
+        s.ultima_ubicacion ?? '',
+        s.fecha_registro ?? '',
+        s.registrado_por ?? '',
+        s.fecha_aparecio ?? '',
+        s.tipo_confirmacion ?? '',
+        s.detalles_confirmacion ?? '',
+        s.nombre_contacto ?? '',
+        s.telefono_contacto ?? '',
+        s.relacion_contacto ?? ''
+      ]);
+
+      const csv = [headers, ...rows]
+        .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `ucv-aparecidos-admin-completo-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Error al exportar: ' + err.message);
+    } finally {
+      btnAdminExport.disabled = false;
+      btnAdminExport.textContent = '📥 Exportar Base Completa (CSV)';
+    }
+  });
+}
 
 // ─────────────────────────────────────────
 //  Refresco periódico

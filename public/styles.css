@@ -1167,3 +1167,45 @@ input, select, textarea { font-family: inherit; color: inherit; }
   border: 2px solid var(--border);
   box-shadow: 0 4px 16px rgba(0,0,0,.18);
 }
+
+/* ── Privacy & Security Notice Badges ── */
+.privacy-notice-band {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(82, 199, 138, 0.08);
+  border: 1px solid rgba(82, 199, 138, 0.22);
+  border-radius: var(--r);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-sec);
+}
+
+.privacy-notice-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.privacy-notice-content strong {
+  color: var(--emerald-lt);
+}
+
+.det-privacy-note {
+  background: rgba(155, 181, 200, 0.07);
+  border: 1px solid rgba(155, 181, 200, 0.16);
+  border-radius: var(--r-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-sec);
+  margin: 16px 0;
+}
+
+.det-privacy-note strong {
+  color: var(--amber);
+}
+

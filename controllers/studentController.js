@@ -29,9 +29,51 @@ function internalError(res, err, ctx) {
   res.status(500).json({ error: 'Error interno del servidor. Intenta de nuevo.' });
 }
 
-exports.getAll = async (_req, res) => {
+function isAdmin(req) {
+  const token = process.env.ADMIN_TOKEN;
+  if (!token) return false; // Por seguridad: sin token configurado, no se exponen datos confidenciales
+  const provided = req.headers['x-admin-token'];
+  return Boolean(provided && provided === token);
+}
+
+function sanitizeStudent(s, isAdminUser) {
+  if (!s) return null;
+  if (isAdminUser) return s;
+
+  // Filtrar todos los datos sensibles para el público general
+  return {
+    id:                    s.id,
+    nombre:                s.nombre,
+    tipo:                  s.tipo,
+    facultad:              s.facultad,
+    carrera:               s.carrera,
+    semestre:              s.semestre,
+    estado:                s.estado,
+    fecha_registro:        s.fecha_registro,
+    fecha_aparecio:        s.fecha_aparecio,
+    tipo_confirmacion:     s.tipo_confirmacion,
+    detalles_confirmacion: s.detalles_confirmacion,
+    foto_signed_url:       s.foto_signed_url,
+    // DATOS SENSIBLES BLOQUEADOS:
+    cedula:                null,
+    ultima_ubicacion:      null,
+    latitud:               null,
+    longitud:              null,
+    descripcion:           null,
+    nombre_contacto:       null,
+    telefono_contacto:     null,
+    relacion_contacto:     null,
+    registrado_por:        null,
+    reportado_aparicion_por: null,
+    contacto_reportador:   null,
+  };
+}
+
+exports.getAll = async (req, res) => {
   try {
-    res.json(await Student.findAll());
+    const list = await Student.findAll();
+    const adminMode = isAdmin(req);
+    res.json(list.map(s => sanitizeStudent(s, adminMode)));
   } catch (err) {
     internalError(res, err, 'getAll');
   }
@@ -43,7 +85,8 @@ exports.getOne = async (req, res) => {
   try {
     const student = await Student.findById(id);
     if (!student) return res.status(404).json({ error: 'Estudiante no encontrado' });
-    res.json(student);
+    const adminMode = isAdmin(req);
+    res.json(sanitizeStudent(student, adminMode));
   } catch (err) {
     internalError(res, err, 'getOne');
   }
@@ -87,7 +130,8 @@ exports.create = async (req, res) => {
     }
 
     const newStudent = await Student.create({ ...req.body, cedula, _file: req.file || null });
-    res.status(201).json(newStudent);
+    const adminMode = isAdmin(req);
+    res.status(201).json(sanitizeStudent(newStudent, adminMode));
   } catch (err) {
     internalError(res, err, 'create');
   }

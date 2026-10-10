@@ -6,8 +6,14 @@
 const api = {
   async get(url) {
     const r = await fetch(url, { cache: 'no-store' });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
+    const contentType = r.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      if (!r.ok) throw new Error(`El servidor respondió con error (HTTP ${r.status})`);
+      throw new Error(`El servidor devolvió una página HTML en vez de datos JSON. Posible falla de despliegue o conexión a base de datos.`);
+    }
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+    return data;
   },
   async post(url, body) {
     const r = await fetch(url, {
@@ -53,10 +59,10 @@ const api = {
 // ─────────────────────────────────────────
 const state = {
   facultades: {},
-  allStudents: [],  // copia completa del servidor
+  allStudents: [],  // copia del servidor (sanitizada)
   students: [],     // vista filtrada
   stats: null,
-  filters: { q: '', facultad: '', carrera: '', estado: '', sort: 'fecha_desc', con_contacto: false }
+  filters: { q: '', facultad: '', carrera: '', estado: 'aparecido', sort: 'fecha_desc' }
 };
 
 const $ = id => document.getElementById(id);
@@ -243,19 +249,9 @@ function renderCard(s) {
       </div>
 
       <div class="card-details">
-        ${s.cedula ? `
-          <div class="d-row">
-            <span class="d-label">Cédula</span>
-            <span class="d-val mono">${esc(s.cedula)}</span>
-          </div>` : ''}
-        ${s.ultima_ubicacion ? `
-          <div class="d-row">
-            <span class="d-label">Última vez</span>
-            <span class="d-val">${esc(s.ultima_ubicacion)}${(s.latitud && s.longitud) ? ` <a class="card-maps-link" href="https://www.google.com/maps?q=${s.latitud},${s.longitud}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">📍 Maps</a>` : ''}</span>
-          </div>` : ''}
         <div class="d-row">
-          <span class="d-label">Reportado</span>
-          <span class="d-val">${timeAgo(s.fecha_registro)}</span>
+          <span class="d-label">${found ? 'Localizado' : 'Reportado'}</span>
+          <span class="d-val">${timeAgo(timeRef)}</span>
         </div>
       </div>
     </div>
@@ -285,13 +281,11 @@ function hasActiveFilters() {
 }
 
 function clearFilters() {
-  state.filters = { q: '', facultad: '', carrera: '', estado: '', sort: state.filters.sort, con_contacto: false };
+  state.filters = { q: '', facultad: '', carrera: '', estado: 'aparecido', sort: state.filters.sort };
   $('filter-q').value = '';
   $('filter-facultad').value = '';
   updateCareerSelect('filter-carrera', '');
-  document.querySelectorAll('.tab-btn[data-estado]').forEach(b => b.classList.toggle('active', b.dataset.estado === ''));
-  const cc = $('btn-con-contacto');
-  if (cc) { cc.classList.remove('active'); cc.setAttribute('aria-pressed', 'false'); }
+  document.querySelectorAll('.tab-btn[data-estado]').forEach(b => b.classList.toggle('active', b.dataset.estado === 'aparecido'));
   renderFacultyBar();
   applyFilters();
 }
@@ -299,11 +293,10 @@ function clearFilters() {
 function buildFilterChips() {
   const chips = [];
   const estadoLabels = { desaparecido: 'Desaparecidos', aparecido: 'Aparecidos', fallecido: 'Fallecidos' };
-  if (state.filters.estado)      chips.push({ key: 'estado',      label: estadoLabels[state.filters.estado] || state.filters.estado });
-  if (state.filters.facultad)    chips.push({ key: 'facultad',    label: state.filters.facultad });
-  if (state.filters.carrera)     chips.push({ key: 'carrera',     label: state.filters.carrera });
-  if (state.filters.q)           chips.push({ key: 'q',           label: `"${state.filters.q}"` });
-  if (state.filters.con_contacto) chips.push({ key: 'con_contacto', label: 'Con contacto' });
+  if (state.filters.estado)   chips.push({ key: 'estado',   label: estadoLabels[state.filters.estado] || state.filters.estado });
+  if (state.filters.facultad) chips.push({ key: 'facultad', label: state.filters.facultad });
+  if (state.filters.carrera)  chips.push({ key: 'carrera',  label: state.filters.carrera });
+  if (state.filters.q)        chips.push({ key: 'q',        label: `"${state.filters.q}"` });
   return chips;
 }
 
@@ -323,10 +316,6 @@ function removeFilterChip(key) {
   } else if (key === 'q') {
     state.filters.q = '';
     $('filter-q').value = '';
-  } else if (key === 'con_contacto') {
-    state.filters.con_contacto = false;
-    const b = $('btn-con-contacto');
-    if (b) { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); }
   }
   applyFilters();
 }
@@ -334,21 +323,15 @@ function removeFilterChip(key) {
 // Filtra state.allStudents en el cliente y actualiza state.students + grid.
 // No toca la red — solo se llama al servidor al mutar datos o en el init.
 function applyFilters() {
-  const { q, facultad, carrera, estado, sort, con_contacto } = state.filters;
+  const { q, facultad, carrera, estado, sort } = state.filters;
   let list = state.allStudents;
 
-  if (estado)       list = list.filter(s => s.estado   === estado);
-  if (facultad)     list = list.filter(s => s.facultad === facultad);
-  if (carrera)      list = list.filter(s => s.carrera  === carrera);
-  if (con_contacto) list = list.filter(s => s.nombre_contacto || s.telefono_contacto || s.registrado_por || s.contacto_reportador);
+  if (estado)   list = list.filter(s => s.estado   === estado);
+  if (facultad) list = list.filter(s => s.facultad === facultad);
+  if (carrera)  list = list.filter(s => s.carrera  === carrera);
   if (q) {
-    const qLow  = q.trim().toLowerCase();
-    const isNum = /^\d+$/.test(qLow);
-    list = list.filter(s => {
-      const nameMatch = s.nombre.toLowerCase().includes(qLow);
-      const cedMatch  = isNum && s.cedula != null && String(s.cedula).includes(qLow);
-      return nameMatch || cedMatch;
-    });
+    const qLow = q.trim().toLowerCase();
+    list = list.filter(s => s.nombre.toLowerCase().includes(qLow));
   }
 
   list = [...list].sort((a, b) => {
@@ -683,46 +666,7 @@ function startRealtime() {
   if (!document.hidden) start();
 }
 
-// ─────────────────────────────────────────
-//  Export CSV (#12)
-// ─────────────────────────────────────────
-function exportCSV() {
-  const list = state.students;
-  if (!list.length) { toast('No hay datos para exportar', 'info'); return; }
 
-  const headers = [
-    'Nombre', 'Cédula', 'Facultad', 'Carrera', 'Semestre',
-    'Estado', 'Última ubicación', 'Fecha registro',
-    'Contacto nombre', 'Teléfono contacto',
-  ];
-  const rows = list.map(s => [
-    s.nombre,
-    s.cedula            ?? '',
-    s.facultad,
-    s.carrera,
-    s.semestre          ?? '',
-    s.estado,
-    s.ultima_ubicacion  ?? '',
-    formatDate(s.fecha_registro),
-    s.nombre_contacto   ?? '',
-    s.telefono_contacto ?? '',
-  ]);
-
-  const csv = [headers, ...rows]
-    .map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = `ucv-aparecidos-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  toast(`${list.length} registro${list.length !== 1 ? 's' : ''} exportado${list.length !== 1 ? 's' : ''}`, 'success');
-}
 
 // ─────────────────────────────────────────
 //  Modal helpers + focus trap (D2/D3)
@@ -808,60 +752,19 @@ function openDetailModal(id) {
           <span class="det-fv">${esc(s.carrera)}</span>
         </div>
         <div class="det-field">
-          <span class="det-fl">Cédula</span>
-          <span class="det-fv mono">${s.cedula ? esc(s.cedula) : '<span class="empty">No registrada</span>'}</span>
-        </div>
-        <div class="det-field">
           <span class="det-fl">Semestre</span>
           <span class="det-fv">${s.semestre ? esc(s.semestre) : '<span class="empty">No especificado</span>'}</span>
         </div>
-      </div>
-    </div>
-
-    <div class="det-section">
-      <div class="det-sec-title">Última información conocida</div>
-      ${(s.latitud && s.longitud) ? `
-      <div class="det-map-wrap">
-        <iframe class="det-map" loading="lazy"
-          src="${osmEmbedUrl(s.latitud, s.longitud)}"
-          allowfullscreen>
-        </iframe>
-        <a class="det-map-link" href="https://www.google.com/maps?q=${s.latitud},${s.longitud}" target="_blank" rel="noopener noreferrer">
-          <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 3h6v6M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Abrir en Google Maps
-        </a>
-      </div>` : ''}
-      <div class="det-grid">
-        <div class="det-field" style="grid-column:1/-1">
-          <span class="det-fl">Última ubicación</span>
-          <span class="det-fv">${s.ultima_ubicacion ? esc(s.ultima_ubicacion) : '<span class="empty">No especificada</span>'}${(!s.latitud && s.ultima_ubicacion) ? ` <a class="maps-search-link" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.ultima_ubicacion)}" target="_blank" rel="noopener noreferrer">Buscar en Maps ↗</a>` : ''}</span>
-        </div>
-        ${s.descripcion ? `
-          <div class="det-field" style="grid-column:1/-1">
-            <span class="det-fl">Descripción adicional</span>
-            <span class="det-fv">${esc(s.descripcion)}</span>
-          </div>` : ''}
         <div class="det-field">
-          <span class="det-fl">Fecha de reporte</span>
-          <span class="det-fv">${formatDate(s.fecha_registro)}</span>
+          <span class="det-fl">Estado</span>
+          <span class="det-fv" style="font-weight:600">${esc(s.estado)}</span>
         </div>
-        ${s.registrado_por ? `
-          <div class="det-field">
-            <span class="det-fl">Registrado por</span>
-            <span class="det-fv">${esc(s.registrado_por)}</span>
-          </div>` : ''}
       </div>
     </div>
 
-    ${s.nombre_contacto || s.telefono_contacto ? `
-    <div class="det-section">
-      <div class="det-sec-title">Contacto familiar</div>
-      <div class="det-grid">
-        ${s.nombre_contacto ? `<div class="det-field"><span class="det-fl">Nombre</span><span class="det-fv">${esc(s.nombre_contacto)}</span></div>` : ''}
-        ${s.relacion_contacto ? `<div class="det-field"><span class="det-fl">Relación</span><span class="det-fv">${esc(s.relacion_contacto)}</span></div>` : ''}
-        ${s.telefono_contacto ? `<div class="det-field" style="grid-column:1/-1"><span class="det-fl">Teléfono</span><span class="det-fv mono"><a href="tel:${esc(s.telefono_contacto)}" class="tel-link">${esc(s.telefono_contacto)}</a></span></div>` : ''}
-      </div>
-    </div>` : ''}
+    <div class="det-privacy-note">
+      🔒 <strong>Privacidad protegida:</strong> Números de cédula, viviendas/ubicaciones y contactos familiares están reservados y no son públicos para resguardar la seguridad de la persona y su familia.
+    </div>
 
     ${found && conf ? `
     <div class="det-section">
@@ -873,9 +776,6 @@ function openDetailModal(id) {
           <span class="det-conf-when">${formatDate(s.fecha_aparecio)}</span>
         </div>
         ${s.detalles_confirmacion ? `<p class="det-conf-text">"${esc(s.detalles_confirmacion)}"</p>` : ''}
-        ${s.reportado_aparicion_por ? `
-          <p class="det-conf-reporter">Reportado por: ${esc(s.reportado_aparicion_por)}${s.contacto_reportador ? ` · ${esc(s.contacto_reportador)}` : ''}</p>
-        ` : ''}
       </div>
     </div>` : ''}
 
@@ -889,9 +789,6 @@ function openDetailModal(id) {
           <span class="det-conf-when">${formatDate(s.fecha_aparecio)}</span>
         </div>
         ${s.detalles_confirmacion ? `<p class="det-conf-text">"${esc(s.detalles_confirmacion)}"</p>` : ''}
-        ${s.reportado_aparicion_por ? `
-          <p class="det-conf-reporter">Reportado por: ${esc(s.reportado_aparicion_por)}${s.contacto_reportador ? ` · ${esc(s.contacto_reportador)}` : ''}</p>
-        ` : ''}
       </div>
     </div>` : ''}
 
@@ -903,7 +800,6 @@ function openDetailModal(id) {
           <div class="tl-content">
             <div class="tl-label">Caso registrado</div>
             <div class="tl-date">${formatDate(s.fecha_registro)}</div>
-            ${s.registrado_por ? `<div class="tl-sub">por ${esc(s.registrado_por)}</div>` : ''}
           </div>
         </div>
         ${s.fecha_aparecio ? `
@@ -913,7 +809,6 @@ function openDetailModal(id) {
             <div class="tl-content">
               <div class="tl-label">${s.estado === 'aparecido' ? 'Aparición confirmada' : 'Fallecimiento reportado'}</div>
               <div class="tl-date">${formatDate(s.fecha_aparecio)}</div>
-              ${s.reportado_aparicion_por ? `<div class="tl-sub">por ${esc(s.reportado_aparicion_por)}</div>` : ''}
             </div>
           </div>
         ` : `
@@ -973,81 +868,7 @@ function openDetailModal(id) {
   openModal('modal-detalle');
 }
 
-// ─────────────────────────────────────────
-//  Edit modal
-// ─────────────────────────────────────────
-let _editNominatimInit = false;
 
-function openEditModal(id) {
-  const s = state.allStudents.find(x => x.id === id);
-  if (!s) return;
-
-  $('edit-student-id').value  = id;
-  $('edit-estado').value      = s.estado;
-  $('edit-ubicacion').value   = s.ultima_ubicacion || '';
-  $('edit-lat').value         = s.latitud  ?? '';
-  $('edit-lng').value         = s.longitud ?? '';
-  $('edit-tipo-conf').value   = s.tipo_confirmacion || '';
-  $('edit-detalles').value    = s.detalles_confirmacion || '';
-
-  const needsConf = s.estado === 'aparecido' || s.estado === 'fallecido';
-  $('edit-conf-wrap').style.display = needsConf ? 'block' : 'none';
-
-  const preview = $('edit-maps-preview');
-  if (s.latitud && s.longitud) {
-    preview.innerHTML     = `<iframe class="maps-preview-frame" loading="lazy" src="${osmEmbedUrl(s.latitud, s.longitud)}" allowfullscreen></iframe>`;
-    preview.style.display = 'block';
-  } else {
-    preview.style.display = 'none'; preview.innerHTML = '';
-  }
-
-  if (!_editNominatimInit) {
-    initNominatimAutocomplete('edit-ubicacion', 'edit-lat', 'edit-lng', 'edit-maps-preview');
-    _editNominatimInit = true;
-
-    $('edit-estado').addEventListener('change', e => {
-      const v = e.target.value;
-      $('edit-conf-wrap').style.display = (v === 'aparecido' || v === 'fallecido') ? 'block' : 'none';
-    });
-
-    $('form-editar').addEventListener('submit', e => {
-      e.preventDefault();
-      submitEdit();
-    });
-  }
-
-  openModal('modal-editar');
-}
-
-async function submitEdit() {
-  const id  = parseInt($('edit-student-id').value);
-  const btn = $('btn-submit-edit');
-  btn.disabled = true; btn.textContent = 'Guardando…';
-
-  const estado = $('edit-estado').value;
-  const body   = {
-    ultima_ubicacion:     $('edit-ubicacion').value.trim() || null,
-    latitud:              $('edit-lat').value  || null,
-    longitud:             $('edit-lng').value  || null,
-    estado,
-    tipo_confirmacion:    $('edit-tipo-conf').value  || null,
-    detalles_confirmacion: $('edit-detalles').value.trim() || null,
-  };
-
-  try {
-    const updated = await api.put(`/api/estudiantes/${id}`, body);
-    // Actualizar en el estado local
-    const idx = state.allStudents.findIndex(x => x.id === id);
-    if (idx !== -1) state.allStudents[idx] = updated;
-    applyFilters();
-    closeModal('modal-editar');
-    toast('Cambios guardados correctamente', 'success');
-  } catch (err) {
-    toast('Error: ' + err.message, 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Guardar cambios';
-  }
-}
 
 // ─────────────────────────────────────────
 //  Found modal
@@ -1365,17 +1186,6 @@ function bindEvents() {
     })
   );
 
-  // Con contacto toggle
-  const btnContact = $('btn-con-contacto');
-  if (btnContact) {
-    btnContact.addEventListener('click', () => {
-      state.filters.con_contacto = !state.filters.con_contacto;
-      btnContact.classList.toggle('active', state.filters.con_contacto);
-      btnContact.setAttribute('aria-pressed', state.filters.con_contacto ? 'true' : 'false');
-      applyFilters();
-    });
-  }
-
   // Sort
   const sortSel = $('filter-sort');
   if (sortSel) {
@@ -1407,10 +1217,6 @@ function bindEvents() {
       if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
     });
   }
-
-  // Export CSV
-  const btnExport = $('btn-export-csv');
-  if (btnExport) btnExport.addEventListener('click', exportCSV);
 
   // Form: facultad → carrera cascade
   $('ff-facultad').addEventListener('change', e =>
