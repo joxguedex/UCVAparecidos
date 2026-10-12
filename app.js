@@ -13,9 +13,13 @@ const { apiLimiter } = require('./middleware/limiters');
 
 const app = express();
 
-// ── Vercel rewrite bridge: restaura la URL original solicitada si Vercel la reescribe a /server.js ──
+// ── Vercel rewrite bridge: restaura la URL original solicitada si Vercel la reescribe ──
 app.use((req, _res, next) => {
-  if (req.url === '/server.js' || req.url.startsWith('/server.js?')) {
+  if (
+    req.url === '/server.js' || req.url.startsWith('/server.js?') ||
+    req.url === '/api/index.js' || req.url.startsWith('/api/index.js?') ||
+    req.url === '/api' || req.url === '/api/'
+  ) {
     const original = req.headers['x-matched-path'] || req.headers['x-forwarded-uri'] || req.headers['x-original-url'];
     if (original) {
       req.url = original;
